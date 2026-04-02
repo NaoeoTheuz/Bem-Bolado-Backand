@@ -7,15 +7,22 @@ exports.registrar = async (req, res) => {
     try {
         const { nome, email, senha, cpf } = req.body;
         
-        let user = await User.findOne({ where: { email } });
-        if (user) {
-            return res.status(400).json({ msg: 'Usuário já existe' });
+        // Verificar se email já existe
+        let userEmail = await User.findOne({ where: { email } });
+        if (userEmail) {
+            return res.status(400).json({ msg: 'Este email já está cadastrado!' });
+        }
+        
+        // Verificar se CPF já existe
+        let userCpf = await User.findOne({ where: { cpf } });
+        if (userCpf) {
+            return res.status(400).json({ msg: 'Este CPF já está cadastrado!' });
         }
         
         const salt = await bcrypt.genSalt(10);
         const senhaCriptografada = await bcrypt.hash(senha, salt);
         
-        user = await User.create({
+        const user = await User.create({
             nome,
             email,
             senha: senhaCriptografada,
@@ -39,7 +46,7 @@ exports.registrar = async (req, res) => {
         
     } catch (err) {
         console.error(err);
-        res.status(500).json({ msg: 'Erro no servidor' });
+        res.status(500).json({ msg: 'Erro no servidor. Tente novamente mais tarde.' });
     }
 };
 
@@ -50,12 +57,12 @@ exports.login = async (req, res) => {
         
         const user = await User.findOne({ where: { email } });
         if (!user) {
-            return res.status(400).json({ msg: 'Credenciais inválidas' });
+            return res.status(400).json({ msg: 'Email ou senha inválidos!' });
         }
         
         const senhaValida = await bcrypt.compare(senha, user.senha);
         if (!senhaValida) {
-            return res.status(400).json({ msg: 'Credenciais inválidas' });
+            return res.status(400).json({ msg: 'Email ou senha inválidos!' });
         }
         
         const token = jwt.sign(
@@ -75,6 +82,6 @@ exports.login = async (req, res) => {
         
     } catch (err) {
         console.error(err);
-        res.status(500).json({ msg: 'Erro no servidor' });
+        res.status(500).json({ msg: 'Erro no servidor. Tente novamente mais tarde.' });
     }
 };
