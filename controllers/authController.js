@@ -5,7 +5,13 @@ const jwt = require('jsonwebtoken');
 // Registrar novo usuário
 exports.registrar = async (req, res) => {
     try {
-        const { nome, email, senha, cpf } = req.body;
+        const { username, display_name, email, senha, cpf } = req.body;
+        
+        // Verificar se username já existe
+        let userUsername = await User.findOne({ where: { username } });
+        if (userUsername) {
+            return res.status(400).json({ msg: 'Este nome de usuário já está em uso!' });
+        }
         
         // Verificar se email já existe
         let userEmail = await User.findOne({ where: { email } });
@@ -23,7 +29,8 @@ exports.registrar = async (req, res) => {
         const senhaCriptografada = await bcrypt.hash(senha, salt);
         
         const user = await User.create({
-            nome,
+            username,
+            display_name,
             email,
             senha: senhaCriptografada,
             cpf
@@ -39,7 +46,8 @@ exports.registrar = async (req, res) => {
             token,
             usuario: {
                 id: user.id,
-                nome: user.nome,
+                username: user.username,
+                display_name: user.display_name,
                 email: user.email
             }
         });
@@ -75,7 +83,8 @@ exports.login = async (req, res) => {
             token,
             usuario: {
                 id: user.id,
-                nome: user.nome,
+                username: user.username,
+                display_name: user.display_name,
                 email: user.email
             }
         });
