@@ -22,8 +22,10 @@ exports.criarPost = async (req, res) => {
             imagem: post.imagem,
             descricao: post.descricao,
             hashtag: post.hashtag,
-            usuario: usuario.nome,
-            handle: '@' + usuario.nome.toLowerCase().replace(/\s/g, ''),
+            usuario_id: usuario.id,
+            display_name: usuario.display_name,
+            username: usuario.username,
+            handle: '@' + usuario.username,
             timestamp: post.createdAt,
             curtidas: 0,
             curtido: false,
@@ -42,7 +44,7 @@ exports.listarPosts = async (req, res) => {
     try {
         const posts = await Post.findAll({
             order: [['createdAt', 'DESC']],
-            include: [{ model: User, attributes: ['nome'] }]
+            include: [{ model: User, attributes: ['id', 'username', 'display_name'] }]
         });
         
         const postsFormatados = await Promise.all(posts.map(async post => {
@@ -66,8 +68,10 @@ exports.listarPosts = async (req, res) => {
                 imagem: post.imagem,
                 descricao: post.descricao,
                 hashtag: post.hashtag,
-                usuario: post.User.nome,
-                handle: '@' + post.User.nome.toLowerCase().replace(/\s/g, ''),
+                usuario_id: post.User.id,
+                display_name: post.User.display_name,
+                username: post.User.username,
+                handle: '@' + post.User.username,
                 timestamp: post.createdAt,
                 curtidas: curtidas,
                 curtido: curtido,
