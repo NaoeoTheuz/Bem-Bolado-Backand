@@ -61,4 +61,9 @@ const User = sequelize.define('User', {
     }
 });
 
+// ASSOCIAÇÕES
+User.associate = (models) => {
+    User.hasMany(models.Post, { foreignKey: 'usuario_id' });
+};
+
 module.exports = User;
