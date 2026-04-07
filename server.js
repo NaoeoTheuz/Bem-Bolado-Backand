@@ -24,15 +24,28 @@ app.get('/', (req, res) => {
     res.json({ msg: 'API Bem Bolado funcionando! 🚀' });
 });
 
-// Sincronizar banco de dados
-sequelize.sync({ alter: true }).then(() => {
-    console.log('✅ Banco de dados sincronizado');
-}).catch(err => {
-    console.error('❌ Erro ao sincronizar banco:', err);
-});
-
-// Iniciar servidor
+// Sincronizar banco de dados e iniciar servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
-});
+
+async function startServer() {
+    try {
+        // Testar conexão com o banco
+        await sequelize.authenticate();
+        console.log('✅ Conexão com o banco de dados estabelecida');
+        
+        // Sincronizar modelos (cria as tabelas se não existirem)
+        await sequelize.sync({ alter: true });
+        console.log('✅ Banco de dados sincronizado');
+        
+        // Iniciar servidor
+        app.listen(PORT, () => {
+            console.log(`🚀 Servidor rodando na porta ${PORT}`);
+            console.log(`📱 API disponível em: http://localhost:${PORT}`);
+        });
+    } catch (err) {
+        console.error('❌ Erro ao iniciar o servidor:', err);
+        process.exit(1);
+    }
+}
+
+startServer();
