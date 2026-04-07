@@ -59,11 +59,17 @@ const User = sequelize.define('User', {
         type: DataTypes.BOOLEAN,
         defaultValue: true
     }
+}, {
+    tableName: 'users',
+    timestamps: true,
+    underscored: true
 });
 
-// ASSOCIAÇÕES
+// ASSOCIAÇÕES COMPLETAS
 User.associate = (models) => {
     User.hasMany(models.Post, { foreignKey: 'usuario_id' });
+    User.hasMany(models.Like, { foreignKey: 'usuario_id' });
+    User.hasMany(models.SavedPost, { foreignKey: 'usuario_id' });
 };
 
 module.exports = User;
