@@ -27,9 +27,37 @@ const Like = require('../models/Like');
 const SavedPost = require('../models/SavedPost');
 
 // Configurar associações
-if (User.associate) User.associate({ Post, Like, SavedPost });
-if (Post.associate) Post.associate({ User, Like, SavedPost });
-if (Like && Like.associate) Like.associate({ User, Post });
-if (SavedPost && SavedPost.associate) SavedPost.associate({ User, Post });
+User.associate = function(models) {
+    User.hasMany(models.Post, { foreignKey: 'usuario_id' });
+    User.hasMany(models.Like, { foreignKey: 'usuario_id' });
+    User.hasMany(models.SavedPost, { foreignKey: 'usuario_id' });
+};
+
+Post.associate = function(models) {
+    Post.belongsTo(models.User, { foreignKey: 'usuario_id' });
+    Post.hasMany(models.Like, { foreignKey: 'post_id' });
+    Post.hasMany(models.SavedPost, { foreignKey: 'post_id' });
+};
+
+Like.associate = function(models) {
+    Like.belongsTo(models.User, { foreignKey: 'usuario_id' });
+    Like.belongsTo(models.Post, { foreignKey: 'post_id' });
+};
+
+SavedPost.associate = function(models) {
+    SavedPost.belongsTo(models.User, { foreignKey: 'usuario_id' });
+    SavedPost.belongsTo(models.Post, { foreignKey: 'post_id' });
+};
+
+// Executar associações
+User.associate({ Post, Like, SavedPost });
+Post.associate({ User, Like, SavedPost });
+if (Like.associate) Like.associate({ User, Post });
+if (SavedPost.associate) SavedPost.associate({ User, Post });
+
+// Testar conexão
+sequelize.authenticate()
+    .then(() => console.log('✅ Conexão com o banco de dados estabelecida com sucesso!'))
+    .catch(err => console.error('❌ Erro ao conectar ao banco:', err));
 
 module.exports = sequelize;
