@@ -17,15 +17,21 @@ exports.criarPost = async (req, res) => {
         
         const usuario = await User.findByPk(req.usuarioId);
         
+        if (!usuario) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
+        const nomeExibicao = usuario.display_name || usuario.username || 'Usuário';
+        
         res.json({
             id: post.id,
             imagem: post.imagem,
             descricao: post.descricao,
             hashtag: post.hashtag,
             usuario_id: usuario.id,
-            display_name: usuario.display_name,
+            display_name: nomeExibicao,
             username: usuario.username,
-            handle: '@' + usuario.display_name.toLowerCase().replace(/\s/g, ''),
+            handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
             timestamp: post.createdAt,
             curtidas: 0,
             curtido: false,
@@ -34,56 +40,67 @@ exports.criarPost = async (req, res) => {
         });
         
     } catch (err) {
-        console.error(err);
+        console.error('Erro criarPost:', err);
         res.status(500).json({ msg: 'Erro ao criar publicação' });
     }
 };
 
-// Listar todas as publicações
+// Listar todas as publicações - SEM INCLUDE, BUSCANDO MANUALMENTE
 exports.listarPosts = async (req, res) => {
     try {
         const posts = await Post.findAll({
-            order: [['createdAt', 'DESC']],
-            include: [{ model: User, attributes: ['id', 'username', 'display_name'] }]
+            order: [['createdAt', 'DESC']]
         });
         
-        const postsFormatados = await Promise.all(posts.map(async post => {
-            const curtidas = await Like.count({ where: { post_id: post.id } });
-            const salvos = await SavedPost.count({ where: { post_id: post.id } });
-            
-            let curtido = false;
-            let salvo = false;
-            
-            if (req.usuarioId) {
-                curtido = await Like.findOne({ 
-                    where: { post_id: post.id, usuario_id: req.usuarioId } 
-                }) !== null;
-                salvo = await SavedPost.findOne({ 
-                    where: { post_id: post.id, usuario_id: req.usuarioId } 
-                }) !== null;
+        const postsFormatados = [];
+        
+        for (const post of posts) {
+            try {
+                // Buscar usuário manualmente
+                const usuario = await User.findByPk(post.usuario_id);
+                
+                const curtidas = await Like.count({ where: { post_id: post.id } });
+                const salvos = await SavedPost.count({ where: { post_id: post.id } });
+                
+                let curtido = false;
+                let salvo = false;
+                
+                if (req.usuarioId) {
+                    curtido = await Like.findOne({ 
+                        where: { post_id: post.id, usuario_id: req.usuarioId } 
+                    }) !== null;
+                    salvo = await SavedPost.findOne({ 
+                        where: { post_id: post.id, usuario_id: req.usuarioId } 
+                    }) !== null;
+                }
+                
+                const nomeExibicao = usuario ? (usuario.display_name || usuario.username || 'Usuário') : 'Usuário';
+                const username = usuario ? (usuario.username || 'usuario') : 'usuario';
+                
+                postsFormatados.push({
+                    id: post.id,
+                    imagem: post.imagem,
+                    descricao: post.descricao,
+                    hashtag: post.hashtag,
+                    usuario_id: post.usuario_id,
+                    display_name: nomeExibicao,
+                    username: username,
+                    handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
+                    timestamp: post.createdAt,
+                    curtidas: curtidas,
+                    curtido: curtido,
+                    salvos: salvos,
+                    salvo: salvo
+                });
+            } catch (innerErr) {
+                console.error('Erro processando post:', post.id, innerErr.message);
             }
-            
-            return {
-                id: post.id,
-                imagem: post.imagem,
-                descricao: post.descricao,
-                hashtag: post.hashtag,
-                usuario_id: post.User.id,
-                display_name: post.User.display_name,
-                username: post.User.username,
-                handle: '@' + post.User.display_name.toLowerCase().replace(/\s/g, ''),
-                timestamp: post.createdAt,
-                curtidas: curtidas,
-                curtido: curtido,
-                salvos: salvos,
-                salvo: salvo
-            };
-        }));
+        }
         
         res.json(postsFormatados);
         
     } catch (err) {
-        console.error(err);
+        console.error('Erro listarPosts:', err);
         res.status(500).json({ msg: 'Erro ao listar publicações' });
     }
 };
@@ -99,14 +116,14 @@ exports.toggleCurtida = async (req, res) => {
         
         if (curtidaExistente) {
             await curtidaExistente.destroy();
-            res.json({ msg: 'Descurtido', curtido: false });
+            res.json({ curtido: false });
         } else {
             await Like.create({ post_id: id, usuario_id: req.usuarioId });
-            res.json({ msg: 'Curtido', curtido: true });
+            res.json({ curtido: true });
         }
         
     } catch (err) {
-        console.error(err);
+        console.error('Erro toggleCurtida:', err);
         res.status(500).json({ msg: 'Erro ao processar curtida' });
     }
 };
@@ -122,14 +139,14 @@ exports.toggleSalvar = async (req, res) => {
         
         if (salvoExistente) {
             await salvoExistente.destroy();
-            res.json({ msg: 'Removido dos salvos', salvo: false });
+            res.json({ salvo: false });
         } else {
             await SavedPost.create({ post_id: id, usuario_id: req.usuarioId });
-            res.json({ msg: 'Salvo', salvo: true });
+            res.json({ salvo: true });
         }
         
     } catch (err) {
-        console.error(err);
+        console.error('Erro toggleSalvar:', err);
         res.status(500).json({ msg: 'Erro ao processar salvamento' });
     }
 };
@@ -156,7 +173,7 @@ exports.excluirPost = async (req, res) => {
         res.json({ msg: 'Publicação excluída' });
         
     } catch (err) {
-        console.error(err);
+        console.error('Erro excluirPost:', err);
         res.status(500).json({ msg: 'Erro ao excluir publicação' });
     }
 };
