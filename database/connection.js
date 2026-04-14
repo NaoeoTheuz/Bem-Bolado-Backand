@@ -20,4 +20,16 @@ const sequelize = new Sequelize(
     }
 );
 
+// Importar modelos
+const User = require('../models/User');
+const Post = require('../models/Post');
+const Like = require('../models/Like');
+const SavedPost = require('../models/SavedPost');
+
+// Configurar associações
+if (User.associate) User.associate({ Post, Like, SavedPost });
+if (Post.associate) Post.associate({ User, Like, SavedPost });
+if (Like && Like.associate) Like.associate({ User, Post });
+if (SavedPost && SavedPost.associate) SavedPost.associate({ User, Post });
+
 module.exports = sequelize;
