@@ -1,1 +1,23 @@
+const { DataTypes } = require('sequelize');
+const sequelize = require('../database/connection');
 
+const Chat = sequelize.define('Chat', {
+    id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true
+    },
+    nome: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    tipo: {
+        type: DataTypes.ENUM('individual', 'grupo'),
+        defaultValue: 'individual'
+    }
+}, {
+    tableName: 'chats',
+    timestamps: true
+});
+
+module.exports = Chat;
