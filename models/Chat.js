@@ -7,10 +7,6 @@ const Chat = sequelize.define('Chat', {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
-    nome: {
-        type: DataTypes.STRING,
-        allowNull: true
-    },
     tipo: {
         type: DataTypes.ENUM('individual', 'grupo'),
         defaultValue: 'individual'
