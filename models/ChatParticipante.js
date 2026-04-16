@@ -3,16 +3,16 @@ const sequelize = require('../database/connection');
 
 const ChatParticipante = sequelize.define('ChatParticipante', {
     id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
         primaryKey: true
     },
     chat_id: {
-        type: DataTypes.UUID,
+        type: DataTypes.INTEGER,
         allowNull: false
     },
     usuario_id: {
-        type: DataTypes.UUID,
+        type: DataTypes.INTEGER,
         allowNull: false
     },
     ultima_leitura: {
