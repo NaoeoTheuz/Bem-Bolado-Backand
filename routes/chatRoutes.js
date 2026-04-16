@@ -57,7 +57,6 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
     try {
         const { usuarioId } = req.params;
         
-        // Buscar chat existente entre os dois
         const chatsUsuario = await Chat.findAll({
             include: [
                 {
@@ -77,7 +76,6 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
             return res.json(chatsUsuario[0]);
         }
         
-        // Criar novo chat
         const chat = await Chat.create({ tipo: 'individual' });
         
         await ChatParticipante.create({ chat_id: chat.id, usuario_id: req.usuarioId });
@@ -93,7 +91,7 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
     }
 });
 
-// Buscar todas as mensagens de um chat (NÃO APAGA NUNCA)
+// Buscar todas as mensagens de um chat
 router.get('/chats/:chatId/mensagens', auth, async (req, res) => {
     try {
         const mensagens = await Mensagem.findAll({
