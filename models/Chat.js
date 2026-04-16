@@ -3,8 +3,8 @@ const sequelize = require('../database/connection');
 
 const Chat = sequelize.define('Chat', {
     id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
         primaryKey: true
     },
     tipo: {
