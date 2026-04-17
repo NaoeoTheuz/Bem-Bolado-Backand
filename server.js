@@ -61,8 +61,8 @@ const chatRoutes = require('./routes/chatRoutes');
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));  // ALTERADO para 50mb
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));  // ALTERADO para 50mb
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
@@ -80,7 +80,8 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('✅ Conexão com o banco de dados estabelecida');
         
-        await sequelize.sync({ alter: true });
+        // ALTERADO para false para evitar erros de alteração de tabela
+        await sequelize.sync({ alter: false });
         console.log('✅ Banco de dados sincronizado');
         console.log('✅ Associações configuradas');
         console.log('✅ Sistema de Chat ativado');
