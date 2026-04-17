@@ -1,45 +1,74 @@
 const User = require('../models/User');
 
+// =============================================
+// PERFIL DO USUÁRIO
+// =============================================
+
+// Buscar perfil do usuário logado
 exports.getPerfil = async (req, res) => {
     try {
         const user = await User.findByPk(req.usuarioId, {
             attributes: { exclude: ['senha'] }
         });
+        
+        if (!user) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
         res.json(user);
     } catch (err) {
-        console.error(err);
+        console.error('Erro getPerfil:', err);
         res.status(500).json({ msg: 'Erro no servidor' });
     }
 };
 
+// Atualizar perfil (display_name, bio, tema_escuro)
 exports.atualizarPerfil = async (req, res) => {
     try {
-        const { nome, bio } = req.body;
+        const { display_name, bio, tema_escuro } = req.body;
         
-        await User.update(
-            { nome, bio },
-            { where: { id: req.usuarioId } }
-        );
+        const updateData = {};
+        if (display_name !== undefined) updateData.display_name = display_name;
+        if (bio !== undefined) updateData.bio = bio;
+        if (tema_escuro !== undefined) updateData.tema_escuro = tema_escuro;
         
-        res.json({ msg: 'Perfil atualizado' });
+        await User.update(updateData, {
+            where: { id: req.usuarioId }
+        });
+        
+        // Buscar usuário atualizado para retornar
+        const userUpdated = await User.findByPk(req.usuarioId, {
+            attributes: { exclude: ['senha'] }
+        });
+        
+        res.json({ 
+            msg: 'Perfil atualizado com sucesso',
+            usuario: userUpdated
+        });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: 'Erro no servidor' });
+        console.error('Erro atualizarPerfil:', err);
+        res.status(500).json({ msg: 'Erro ao atualizar perfil' });
     }
 };
 
+// Atualizar configurações (notificações, privacidade)
 exports.atualizarConfiguracoes = async (req, res) => {
     try {
         const { tema_escuro, notificacoes_curtidas, notificacoes_comentarios, privado } = req.body;
         
-        await User.update(
-            { tema_escuro, notificacoes_curtidas, notificacoes_comentarios, privado },
-            { where: { id: req.usuarioId } }
-        );
+        const updateData = {};
+        if (tema_escuro !== undefined) updateData.tema_escuro = tema_escuro;
+        if (notificacoes_curtidas !== undefined) updateData.notificacoes_curtidas = notificacoes_curtidas;
+        if (notificacoes_comentarios !== undefined) updateData.notificacoes_comentarios = notificacoes_comentarios;
+        if (privado !== undefined) updateData.privado = privado;
         
-        res.json({ msg: 'Configurações atualizadas' });
+        await User.update(updateData, {
+            where: { id: req.usuarioId }
+        });
+        
+        res.json({ msg: 'Configurações atualizadas com sucesso' });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ msg: 'Erro no servidor' });
+        console.error('Erro atualizarConfiguracoes:', err);
+        res.status(500).json({ msg: 'Erro ao atualizar configurações' });
     }
 };
