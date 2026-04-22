@@ -35,7 +35,7 @@ router.get('/chats', auth, async (req, res) => {
                 {
                     model: User,
                     through: { attributes: [] },
-                    attributes: ['id', 'nome', 'email']
+                    attributes: ['id', 'display_name', 'email']
                 },
                 {
                     model: Mensagem,
@@ -82,7 +82,7 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
         await ChatParticipante.create({ chat_id: chat.id, usuario_id: usuarioId });
         
         const chatCompleto = await Chat.findByPk(chat.id, {
-            include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'nome', 'email'] }]
+            include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'display_name', 'email'] }]
         });
         
         res.status(201).json(chatCompleto);
@@ -100,7 +100,7 @@ router.get('/chats/:chatId/mensagens', auth, async (req, res) => {
                 {
                     model: User,
                     as: 'remetente',
-                    attributes: ['id', 'nome']
+                    attributes: ['id', 'display_name']
                 }
             ],
             order: [['createdAt', 'ASC']]
@@ -123,7 +123,7 @@ router.post('/chats/:chatId/mensagens', auth, async (req, res) => {
         });
         
         const mensagemCompleta = await Mensagem.findByPk(mensagem.id, {
-            include: [{ model: User, as: 'remetente', attributes: ['id', 'nome'] }]
+            include: [{ model: User, as: 'remetente', attributes: ['id', 'display_name'] }]
         });
         
         res.status(201).json(mensagemCompleta);
@@ -137,10 +137,19 @@ router.get('/usuarios', auth, async (req, res) => {
     try {
         const usuarios = await User.findAll({
             where: { id: { [Op.ne]: req.usuarioId } },
-            attributes: ['id', 'nome', 'email']
+            attributes: ['id', 'display_name', 'email']
         });
-        res.json(usuarios);
+        
+        // Formatar para o frontend
+        const usuariosFormatados = usuarios.map(user => ({
+            id: user.id,
+            nome: user.display_name,
+            email: user.email
+        }));
+        
+        res.json(usuariosFormatados);
     } catch (error) {
+        console.error('Erro ao buscar usuários:', error);
         res.status(500).json({ erro: error.message });
     }
 });
