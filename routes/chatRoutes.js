@@ -29,7 +29,7 @@ const auth = async (req, res, next) => {
 // ROTAS DO CHAT
 // =============================================
 
-// Listar todos os chats do usuário
+// Listar todos os chats do usuário (VERSÃO SIMPLES SEM MENSAGENS)
 router.get('/chats', auth, async (req, res) => {
     try {
         const chats = await Chat.findAll({
@@ -44,16 +44,8 @@ router.get('/chats', auth, async (req, res) => {
                     model: User,
                     through: { attributes: [] },
                     attributes: ['id', 'display_name', 'email']
-                },
-                {
-                    model: Mensagem,
-                    as: 'mensagens',
-                    limit: 1,
-                    order: [['createdAt', 'DESC']],
-                    required: false
                 }
-            ],
-            order: [[{ model: Mensagem, as: 'mensagens' }, 'createdAt', 'DESC']]
+            ]
         });
         res.json(chats);
     } catch (error) {
