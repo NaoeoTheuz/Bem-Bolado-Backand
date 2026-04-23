@@ -29,17 +29,12 @@ const auth = async (req, res, next) => {
 // ROTAS DO CHAT
 // =============================================
 
-// Listar todos os chats do usuário (VERSÃO SIMPLES SEM MENSAGENS)
+// Listar todos os chats do usuário (CORRIGIDA)
 router.get('/chats', auth, async (req, res) => {
     try {
+        // Buscar todos os chats com participantes
         const chats = await Chat.findAll({
             include: [
-                {
-                    model: User,
-                    where: { id: req.usuarioId },
-                    through: { attributes: [] },
-                    attributes: []
-                },
                 {
                     model: User,
                     through: { attributes: [] },
@@ -47,7 +42,14 @@ router.get('/chats', auth, async (req, res) => {
                 }
             ]
         });
-        res.json(chats);
+        
+        // Filtrar apenas os chats que contêm o usuário atual
+        const chatsDoUsuario = chats.filter(chat => {
+            return chat.Users?.some(user => user.id == req.usuarioId);
+        });
+        
+        console.log(`✅ Encontrados ${chatsDoUsuario.length} chats para o usuário ${req.usuarioId}`);
+        res.json(chatsDoUsuario);
     } catch (error) {
         console.error('❌ Erro ao listar chats:', error);
         res.status(500).json({ erro: error.message });
@@ -59,7 +61,8 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
     try {
         const { usuarioId } = req.params;
         
-        const chatsUsuario = await Chat.findAll({
+        // Buscar chat existente entre os dois
+        const chatsExistentes = await Chat.findAll({
             include: [
                 {
                     model: User,
@@ -74,11 +77,18 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
             ]
         });
         
-        if (chatsUsuario.length > 0) {
-            return res.json(chatsUsuario[0]);
+        if (chatsExistentes.length > 0) {
+            console.log(`✅ Chat existente encontrado: ${chatsExistentes[0].id}`);
+            // Retornar o chat existente com dados completos
+            const chatExistente = await Chat.findByPk(chatsExistentes[0].id, {
+                include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'display_name', 'email'] }]
+            });
+            return res.json(chatExistente);
         }
         
+        // Criar novo chat
         const chat = await Chat.create({ tipo: 'individual' });
+        console.log(`📌 Novo chat criado: ${chat.id}`);
         
         await ChatParticipante.create({ chat_id: chat.id, usuario_id: req.usuarioId });
         await ChatParticipante.create({ chat_id: chat.id, usuario_id: usuarioId });
