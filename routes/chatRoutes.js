@@ -7,23 +7,34 @@ const ChatParticipante = require('../models/ChatParticipante');
 const Mensagem = require('../models/Mensagem');
 const User = require('../models/User');
 
-// Middleware de autenticação
+// =============================================
+// MIDDLEWARE DE AUTENTICAÇÃO CORRIGIDO
+// =============================================
 const auth = async (req, res, next) => {
     const token = req.headers['x-auth-token'];
     if (!token) return res.status(401).json({ erro: 'Token não fornecido' });
     try {
         const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.usuarioId = decoded.id;
+        // O token pode ter 'usuarioId' ou 'id' - ACEITA AMBOS
+        req.usuarioId = decoded.usuarioId || decoded.id;
+        console.log('✅ Usuário autenticado ID:', req.usuarioId);
         next();
     } catch (err) {
+        console.error('❌ Erro na autenticação:', err);
         res.status(401).json({ erro: 'Token inválido' });
     }
 };
 
+// =============================================
+// ROTAS DO CHAT
+// =============================================
+
 // Listar todos os chats do usuário
 router.get('/chats', auth, async (req, res) => {
     try {
+        console.log('📋 Buscando chats para usuário:', req.usuarioId);
+        
         const chats = await Chat.findAll({
             include: [
                 {
@@ -46,8 +57,11 @@ router.get('/chats', auth, async (req, res) => {
             ],
             order: [[{ model: Mensagem }, 'createdAt', 'DESC']]
         });
+        
+        console.log(`✅ Encontrados ${chats.length} chats`);
         res.json(chats);
     } catch (error) {
+        console.error('❌ Erro ao listar chats:', error);
         res.status(500).json({ erro: error.message });
     }
 });
@@ -87,6 +101,7 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
         
         res.status(201).json(chatCompleto);
     } catch (error) {
+        console.error('❌ Erro ao criar chat:', error);
         res.status(500).json({ erro: error.message });
     }
 });
@@ -107,6 +122,7 @@ router.get('/chats/:chatId/mensagens', auth, async (req, res) => {
         });
         res.json(mensagens);
     } catch (error) {
+        console.error('❌ Erro ao buscar mensagens:', error);
         res.status(500).json({ erro: error.message });
     }
 });
@@ -128,6 +144,7 @@ router.post('/chats/:chatId/mensagens', auth, async (req, res) => {
         
         res.status(201).json(mensagemCompleta);
     } catch (error) {
+        console.error('❌ Erro ao enviar mensagem:', error);
         res.status(500).json({ erro: error.message });
     }
 });
@@ -135,21 +152,23 @@ router.post('/chats/:chatId/mensagens', auth, async (req, res) => {
 // Buscar todos os usuários (exceto o atual)
 router.get('/usuarios', auth, async (req, res) => {
     try {
+        console.log('📋 Buscando usuários...');
+        
         const usuarios = await User.findAll({
             where: { id: { [Op.ne]: req.usuarioId } },
             attributes: ['id', 'display_name', 'email']
         });
         
-        // Formatar para o frontend
         const usuariosFormatados = usuarios.map(user => ({
             id: user.id,
             nome: user.display_name,
             email: user.email
         }));
         
+        console.log(`✅ Encontrados ${usuariosFormatados.length} usuários`);
         res.json(usuariosFormatados);
     } catch (error) {
-        console.error('Erro ao buscar usuários:', error);
+        console.error('❌ Erro ao buscar usuários:', error);
         res.status(500).json({ erro: error.message });
     }
 });
@@ -168,6 +187,7 @@ router.put('/chats/:chatId/ler', auth, async (req, res) => {
         );
         res.json({ mensagem: 'Mensagens marcadas como lidas' });
     } catch (error) {
+        console.error('❌ Erro ao marcar como lidas:', error);
         res.status(500).json({ erro: error.message });
     }
 });
