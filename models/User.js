@@ -43,6 +43,10 @@ const User = sequelize.define('User', {
         type: DataTypes.TEXT,
         defaultValue: ''
     },
+    avatar: {
+        type: DataTypes.STRING,
+        defaultValue: 'foto_logo_sem_fundo.jpg.png'
+    },
     privado: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
