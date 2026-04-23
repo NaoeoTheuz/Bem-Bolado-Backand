@@ -72,3 +72,26 @@ exports.atualizarConfiguracoes = async (req, res) => {
         res.status(500).json({ msg: 'Erro ao atualizar configurações' });
     }
 };
+
+// =============================================
+// ATUALIZAR AVATAR
+// =============================================
+exports.atualizarAvatar = async (req, res) => {
+    try {
+        const { avatar } = req.body;
+        
+        if (!avatar) {
+            return res.status(400).json({ msg: 'Avatar não fornecido' });
+        }
+        
+        await User.update(
+            { avatar: avatar },
+            { where: { id: req.usuarioId } }
+        );
+        
+        res.json({ avatar: avatar, msg: 'Avatar atualizado com sucesso' });
+    } catch (err) {
+        console.error('Erro atualizarAvatar:', err);
+        res.status(500).json({ msg: 'Erro ao atualizar avatar' });
+    }
+};
