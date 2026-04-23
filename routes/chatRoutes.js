@@ -47,12 +47,13 @@ router.get('/chats', auth, async (req, res) => {
                 },
                 {
                     model: Mensagem,
+                    as: 'mensagens',
                     limit: 1,
                     order: [['createdAt', 'DESC']],
                     required: false
                 }
             ],
-            order: [[{ model: Mensagem }, 'createdAt', 'DESC']]
+            order: [[{ model: Mensagem, as: 'mensagens' }, 'createdAt', 'DESC']]
         });
         res.json(chats);
     } catch (error) {
