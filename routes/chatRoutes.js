@@ -8,7 +8,7 @@ const Mensagem = require('../models/Mensagem');
 const User = require('../models/User');
 
 // =============================================
-// MIDDLEWARE DE AUTENTICAÇÃO CORRIGIDO
+// MIDDLEWARE DE AUTENTICAÇÃO
 // =============================================
 const auth = async (req, res, next) => {
     const token = req.headers['x-auth-token'];
@@ -16,7 +16,6 @@ const auth = async (req, res, next) => {
     try {
         const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        // O token pode ter 'usuarioId' ou 'id' - ACEITA AMBOS
         req.usuarioId = decoded.usuarioId || decoded.id;
         console.log('✅ Usuário autenticado ID:', req.usuarioId);
         next();
@@ -33,8 +32,6 @@ const auth = async (req, res, next) => {
 // Listar todos os chats do usuário
 router.get('/chats', auth, async (req, res) => {
     try {
-        console.log('📋 Buscando chats para usuário:', req.usuarioId);
-        
         const chats = await Chat.findAll({
             include: [
                 {
@@ -57,8 +54,6 @@ router.get('/chats', auth, async (req, res) => {
             ],
             order: [[{ model: Mensagem }, 'createdAt', 'DESC']]
         });
-        
-        console.log(`✅ Encontrados ${chats.length} chats`);
         res.json(chats);
     } catch (error) {
         console.error('❌ Erro ao listar chats:', error);
@@ -152,8 +147,6 @@ router.post('/chats/:chatId/mensagens', auth, async (req, res) => {
 // Buscar todos os usuários (exceto o atual)
 router.get('/usuarios', auth, async (req, res) => {
     try {
-        console.log('📋 Buscando usuários...');
-        
         const usuarios = await User.findAll({
             where: { id: { [Op.ne]: req.usuarioId } },
             attributes: ['id', 'display_name', 'email']
@@ -165,7 +158,6 @@ router.get('/usuarios', auth, async (req, res) => {
             email: user.email
         }));
         
-        console.log(`✅ Encontrados ${usuariosFormatados.length} usuários`);
         res.json(usuariosFormatados);
     } catch (error) {
         console.error('❌ Erro ao buscar usuários:', error);
