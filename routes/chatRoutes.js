@@ -29,10 +29,9 @@ const auth = async (req, res, next) => {
 // ROTAS DO CHAT
 // =============================================
 
-// Listar todos os chats do usuário (CORRIGIDA)
+// Listar todos os chats do usuário
 router.get('/chats', auth, async (req, res) => {
     try {
-        // Buscar todos os chats com participantes
         const chats = await Chat.findAll({
             include: [
                 {
@@ -43,7 +42,6 @@ router.get('/chats', auth, async (req, res) => {
             ]
         });
         
-        // Filtrar apenas os chats que contêm o usuário atual
         const chatsDoUsuario = chats.filter(chat => {
             return chat.Users?.some(user => user.id == req.usuarioId);
         });
@@ -61,7 +59,6 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
     try {
         const { usuarioId } = req.params;
         
-        // Buscar chat existente entre os dois
         const chatsExistentes = await Chat.findAll({
             include: [
                 {
@@ -79,14 +76,12 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
         
         if (chatsExistentes.length > 0) {
             console.log(`✅ Chat existente encontrado: ${chatsExistentes[0].id}`);
-            // Retornar o chat existente com dados completos
             const chatExistente = await Chat.findByPk(chatsExistentes[0].id, {
                 include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'display_name', 'email'] }]
             });
             return res.json(chatExistente);
         }
         
-        // Criar novo chat
         const chat = await Chat.create({ tipo: 'individual' });
         console.log(`📌 Novo chat criado: ${chat.id}`);
         
@@ -143,6 +138,24 @@ router.post('/chats/:chatId/mensagens', auth, async (req, res) => {
         res.status(201).json(mensagemCompleta);
     } catch (error) {
         console.error('❌ Erro ao enviar mensagem:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
+// ROTA PARA INDICAR QUE O USUÁRIO ESTÁ DIGITANDO
+// =============================================
+router.post('/chats/:chatId/digitando', auth, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const { digitando } = req.body;
+        
+        console.log(`✏️ Usuário ${req.usuarioId} ${digitando ? 'está digitando' : 'parou de digitar'} no chat ${chatId}`);
+        // Aqui você pode implementar WebSockets no futuro para notificar o outro usuário
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('❌ Erro ao processar digitando:', error);
         res.status(500).json({ erro: error.message });
     }
 });
