@@ -35,23 +35,24 @@ SavedPost.belongsTo(User, { foreignKey: 'usuario_id' });
 SavedPost.belongsTo(Post, { foreignKey: 'post_id' });
 
 // =============================================
-// ASSOCIAÇÕES DO SISTEMA DE CHAT
+// ASSOCIAÇÕES DO SISTEMA DE CHAT (CORRIGIDAS)
 // =============================================
+
 // Chat com Usuários (muitos para muitos)
 Chat.belongsToMany(User, { through: ChatParticipante, foreignKey: 'chat_id' });
 User.belongsToMany(Chat, { through: ChatParticipante, foreignKey: 'usuario_id' });
 
-// Chat com Mensagens
-Chat.hasMany(Mensagem, { foreignKey: 'chat_id' });
-Mensagem.belongsTo(Chat, { foreignKey: 'chat_id' });
+// Chat com Mensagens (COM ALIAS)
+Chat.hasMany(Mensagem, { foreignKey: 'chat_id', as: 'mensagens' });
+Mensagem.belongsTo(Chat, { foreignKey: 'chat_id', as: 'chat' });
 
 // Mensagem com Usuário (remetente)
 Mensagem.belongsTo(User, { foreignKey: 'remetente_id', as: 'remetente' });
-User.hasMany(Mensagem, { foreignKey: 'remetente_id' });
+User.hasMany(Mensagem, { foreignKey: 'remetente_id', as: 'mensagens_enviadas' });
 
-// ChatParticipante com User
-ChatParticipante.belongsTo(User, { foreignKey: 'usuario_id' });
-ChatParticipante.belongsTo(Chat, { foreignKey: 'chat_id' });
+// ChatParticipante com User e Chat
+ChatParticipante.belongsTo(User, { foreignKey: 'usuario_id', as: 'usuario' });
+ChatParticipante.belongsTo(Chat, { foreignKey: 'chat_id', as: 'chat' });
 
 const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
@@ -80,7 +81,6 @@ async function startServer() {
         await sequelize.authenticate();
         console.log('✅ Conexão com o banco de dados estabelecida');
         
-        // ALTERADO para false para evitar erros de alteração de tabela
         await sequelize.sync({ alter: false });
         console.log('✅ Banco de dados sincronizado');
         console.log('✅ Associações configuradas');
