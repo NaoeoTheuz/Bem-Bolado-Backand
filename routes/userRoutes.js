@@ -6,5 +6,6 @@ const authMiddleware = require('../middlewares/authMiddleware');
 router.get('/perfil', authMiddleware, userController.getPerfil);
 router.put('/perfil', authMiddleware, userController.atualizarPerfil);
 router.put('/configuracoes', authMiddleware, userController.atualizarConfiguracoes);
+router.put('/avatar', authMiddleware, userController.atualizarAvatar);
 
 module.exports = router;
