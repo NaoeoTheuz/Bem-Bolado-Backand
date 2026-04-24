@@ -15,6 +15,9 @@ const Chat = require('./models/Chat');
 const ChatParticipante = require('./models/ChatParticipante');
 const Mensagem = require('./models/Mensagem');
 
+// IMPORTAR MODELO DE SEGUIDORES
+const Seguidor = require('./models/Seguidor');
+
 // CONFIGURAR ASSOCIAÇÕES DIRETAMENTE AQUI
 // Associações do User (já existentes)
 User.hasMany(Post, { foreignKey: 'usuario_id' });
@@ -54,6 +57,14 @@ User.hasMany(Mensagem, { foreignKey: 'remetente_id', as: 'mensagens_enviadas' })
 ChatParticipante.belongsTo(User, { foreignKey: 'usuario_id', as: 'usuario' });
 ChatParticipante.belongsTo(Chat, { foreignKey: 'chat_id', as: 'chat' });
 
+// =============================================
+// ASSOCIAÇÕES DO SISTEMA DE SEGUIDORES
+// =============================================
+Seguidor.belongsTo(User, { as: 'seguidor', foreignKey: 'seguidor_id' });
+Seguidor.belongsTo(User, { as: 'seguindo', foreignKey: 'seguindo_id' });
+User.hasMany(Seguidor, { as: 'seguidores', foreignKey: 'seguindo_id' });
+User.hasMany(Seguidor, { as: 'seguindo', foreignKey: 'seguidor_id' });
+
 const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -85,6 +96,7 @@ async function startServer() {
         console.log('✅ Banco de dados sincronizado');
         console.log('✅ Associações configuradas');
         console.log('✅ Sistema de Chat ativado');
+        console.log('✅ Sistema de Seguidores ativado');
         
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Servidor rodando na porta ${PORT}`);
