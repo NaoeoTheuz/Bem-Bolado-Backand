@@ -21,8 +21,4 @@ const Seguidor = sequelize.define('Seguidor', {
     underscored: true
 });
 
-// Associações (adicione no server.js)
-// Seguidor.belongsTo(User, { as: 'seguidor', foreignKey: 'seguidor_id' });
-// Seguidor.belongsTo(User, { as: 'seguindo', foreignKey: 'seguindo_id' });
-
 module.exports = Seguidor;
