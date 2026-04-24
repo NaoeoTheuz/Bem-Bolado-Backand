@@ -95,3 +95,168 @@ exports.atualizarAvatar = async (req, res) => {
         res.status(500).json({ msg: 'Erro ao atualizar avatar' });
     }
 };
+
+// =============================================
+// NOVAS FUNÇÕES PARA PERFIL PÚBLICO E SEGUIDORES
+// =============================================
+
+// Buscar perfil por username
+exports.getPerfilByUsername = async (req, res) => {
+    try {
+        const { username } = req.params;
+        
+        const user = await User.findOne({
+            where: { username },
+            attributes: ['id', 'username', 'display_name', 'bio', 'avatar', 'createdAt']
+        });
+        
+        if (!user) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
+        // Contar posts do usuário
+        const Post = require('../models/Post');
+        const postsCount = await Post.count({ where: { usuario_id: user.id } });
+        
+        // Contar seguidores
+        const Seguidor = require('../models/Seguidor');
+        const seguidoresCount = await Seguidor.count({ where: { seguindo_id: user.id } });
+        const seguindoCount = await Seguidor.count({ where: { seguidor_id: user.id } });
+        
+        // Verificar se o usuário logado segue este perfil
+        let isFollowing = false;
+        if (req.usuarioId && req.usuarioId !== user.id) {
+            const following = await Seguidor.findOne({
+                where: { seguidor_id: req.usuarioId, seguindo_id: user.id }
+            });
+            isFollowing = !!following;
+        }
+        
+        res.json({
+            ...user.toJSON(),
+            posts_count: postsCount,
+            seguidores_count: seguidoresCount,
+            seguindo_count: seguindoCount,
+            isFollowing,
+            isOwnProfile: req.usuarioId === user.id
+        });
+    } catch (err) {
+        console.error('Erro getPerfilByUsername:', err);
+        res.status(500).json({ msg: 'Erro no servidor' });
+    }
+};
+
+// Buscar posts de um usuário
+exports.getPostsByUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const Post = require('../models/Post');
+        
+        const posts = await Post.findAll({
+            where: { usuario_id: id },
+            order: [['createdAt', 'DESC']],
+            include: [{
+                model: User,
+                attributes: ['id', 'display_name', 'username', 'avatar']
+            }]
+        });
+        
+        res.json(posts);
+    } catch (err) {
+        console.error('Erro getPostsByUser:', err);
+        res.status(500).json({ msg: 'Erro no servidor' });
+    }
+};
+
+// Seguir usuário
+exports.seguir = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const Seguidor = require('../models/Seguidor');
+        
+        if (req.usuarioId === parseInt(id)) {
+            return res.status(400).json({ msg: 'Não pode seguir a si mesmo' });
+        }
+        
+        const existing = await Seguidor.findOne({
+            where: { seguidor_id: req.usuarioId, seguindo_id: id }
+        });
+        
+        if (existing) {
+            return res.status(400).json({ msg: 'Já segue este usuário' });
+        }
+        
+        await Seguidor.create({
+            seguidor_id: req.usuarioId,
+            seguindo_id: id
+        });
+        
+        res.json({ msg: 'Seguindo com sucesso' });
+    } catch (err) {
+        console.error('Erro seguir:', err);
+        res.status(500).json({ msg: 'Erro ao seguir' });
+    }
+};
+
+// Deixar de seguir
+exports.deixarSeguir = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const Seguidor = require('../models/Seguidor');
+        
+        await Seguidor.destroy({
+            where: { seguidor_id: req.usuarioId, seguindo_id: id }
+        });
+        
+        res.json({ msg: 'Deixou de seguir' });
+    } catch (err) {
+        console.error('Erro deixarSeguir:', err);
+        res.status(500).json({ msg: 'Erro ao deixar de seguir' });
+    }
+};
+
+// Listar seguidores
+exports.getSeguidores = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const Seguidor = require('../models/Seguidor');
+        const User = require('../models/User');
+        
+        const seguidores = await Seguidor.findAll({
+            where: { seguindo_id: id },
+            include: [{
+                model: User,
+                as: 'seguidor',
+                attributes: ['id', 'username', 'display_name', 'avatar']
+            }]
+        });
+        
+        res.json(seguidores.map(s => s.seguidor));
+    } catch (err) {
+        console.error('Erro getSeguidores:', err);
+        res.status(500).json({ msg: 'Erro no servidor' });
+    }
+};
+
+// Listar quem o usuário segue
+exports.getSeguindo = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const Seguidor = require('../models/Seguidor');
+        const User = require('../models/User');
+        
+        const seguindo = await Seguidor.findAll({
+            where: { seguidor_id: id },
+            include: [{
+                model: User,
+                as: 'seguindo',
+                attributes: ['id', 'username', 'display_name', 'avatar']
+            }]
+        });
+        
+        res.json(seguindo.map(s => s.seguindo));
+    } catch (err) {
+        console.error('Erro getSeguindo:', err);
+        res.status(500).json({ msg: 'Erro no servidor' });
+    }
+};
