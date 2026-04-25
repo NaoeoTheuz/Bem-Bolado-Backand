@@ -74,25 +74,41 @@ exports.atualizarConfiguracoes = async (req, res) => {
 };
 
 // =============================================
-// ATUALIZAR AVATAR
+// ATUALIZAR AVATAR (VERSÃO CORRIGIDA COM LOGS)
 // =============================================
 exports.atualizarAvatar = async (req, res) => {
     try {
         const { avatar } = req.body;
         
+        console.log('📸 Recebendo requisição de avatar');
+        console.log('📏 ID do usuário:', req.usuarioId);
+        console.log('📊 Avatar recebido?', avatar ? 'SIM' : 'NÃO');
+        
         if (!avatar) {
             return res.status(400).json({ msg: 'Avatar não fornecido' });
         }
         
-        await User.update(
+        // Verificar o tamanho
+        const tamanhoKB = (avatar.length / 1024).toFixed(2);
+        console.log(`📏 Tamanho do Base64: ${tamanhoKB} KB`);
+        
+        // Atualizar o avatar
+        const [rowsUpdated] = await User.update(
             { avatar: avatar },
             { where: { id: req.usuarioId } }
         );
         
+        console.log(`✅ Linhas atualizadas: ${rowsUpdated}`);
+        
+        if (rowsUpdated === 0) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
         res.json({ avatar: avatar, msg: 'Avatar atualizado com sucesso' });
+        
     } catch (err) {
-        console.error('Erro atualizarAvatar:', err);
-        res.status(500).json({ msg: 'Erro ao atualizar avatar' });
+        console.error('❌ Erro detalhado ao atualizar avatar:', err);
+        res.status(500).json({ msg: 'Erro ao atualizar avatar: ' + err.message });
     }
 };
 
