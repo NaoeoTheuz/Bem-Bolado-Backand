@@ -6,6 +6,8 @@ const Chat = require('../models/Chat');
 const ChatParticipante = require('../models/ChatParticipante');
 const Mensagem = require('../models/Mensagem');
 const User = require('../models/User');
+const UsuarioBloqueado = require('../models/UsuarioBloqueado');
+const Denuncia = require('../models/Denuncia');
 
 // =============================================
 // MIDDLEWARE DE AUTENTICAÇÃO
@@ -225,6 +227,110 @@ router.delete('/chats/:chatId/mensagens/:mensagemId', auth, async (req, res) => 
         
     } catch (error) {
         console.error('❌ Erro ao apagar mensagem:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
+// BLOQUEAR USUÁRIO
+// =============================================
+router.post('/bloquear/:usuarioId', auth, async (req, res) => {
+    try {
+        const { usuarioId } = req.params;
+        
+        if (req.usuarioId == usuarioId) {
+            return res.status(400).json({ erro: 'Não pode bloquear a si mesmo' });
+        }
+        
+        const [bloqueio, created] = await UsuarioBloqueado.findOrCreate({
+            where: {
+                usuario_id: req.usuarioId,
+                bloqueado_id: usuarioId
+            },
+            defaults: {
+                usuario_id: req.usuarioId,
+                bloqueado_id: usuarioId
+            }
+        });
+        
+        if (created) {
+            console.log(`🔒 Usuário ${req.usuarioId} bloqueou ${usuarioId}`);
+            res.json({ bloqueado: true, mensagem: 'Usuário bloqueado com sucesso' });
+        } else {
+            res.json({ bloqueado: false, mensagem: 'Usuário já estava bloqueado' });
+        }
+    } catch (error) {
+        console.error('Erro ao bloquear:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
+// DESBLOQUEAR USUÁRIO
+// =============================================
+router.delete('/bloquear/:usuarioId', auth, async (req, res) => {
+    try {
+        const { usuarioId } = req.params;
+        
+        await UsuarioBloqueado.destroy({
+            where: {
+                usuario_id: req.usuarioId,
+                bloqueado_id: usuarioId
+            }
+        });
+        
+        console.log(`🔓 Usuário ${req.usuarioId} desbloqueou ${usuarioId}`);
+        res.json({ desbloqueado: true, mensagem: 'Usuário desbloqueado' });
+    } catch (error) {
+        console.error('Erro ao desbloquear:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
+// VERIFICAR SE ESTÁ BLOQUEADO
+// =============================================
+router.get('/bloqueado/:usuarioId', auth, async (req, res) => {
+    try {
+        const { usuarioId } = req.params;
+        
+        const bloqueado = await UsuarioBloqueado.findOne({
+            where: {
+                usuario_id: req.usuarioId,
+                bloqueado_id: usuarioId
+            }
+        });
+        
+        res.json({ bloqueado: !!bloqueado });
+    } catch (error) {
+        console.error('Erro ao verificar bloqueio:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
+// DENUNCIAR USUÁRIO
+// =============================================
+router.post('/denunciar/:usuarioId', auth, async (req, res) => {
+    try {
+        const { usuarioId } = req.params;
+        const { motivo, descricao } = req.body;
+        
+        if (req.usuarioId == usuarioId) {
+            return res.status(400).json({ erro: 'Não pode denunciar a si mesmo' });
+        }
+        
+        const denuncia = await Denuncia.create({
+            denunciante_id: req.usuarioId,
+            denunciado_id: usuarioId,
+            motivo: motivo,
+            descricao: descricao || null
+        });
+        
+        console.log(`📢 Usuário ${req.usuarioId} denunciou ${usuarioId} - Motivo: ${motivo}`);
+        res.json({ denunciado: true, mensagem: 'Denúncia enviada com sucesso' });
+    } catch (error) {
+        console.error('Erro ao denunciar:', error);
         res.status(500).json({ erro: error.message });
     }
 });
