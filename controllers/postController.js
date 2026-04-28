@@ -31,6 +31,7 @@ exports.criarPost = async (req, res) => {
             usuario_id: usuario.id,
             display_name: nomeExibicao,
             username: usuario.username,
+            avatar: usuario.avatar,  // ← ADICIONADO
             handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
             timestamp: post.createdAt,
             curtidas: 0,
@@ -45,7 +46,7 @@ exports.criarPost = async (req, res) => {
     }
 };
 
-// Listar todas as publicações - SEM INCLUDE, BUSCANDO MANUALMENTE
+// Listar todas as publicações - COM AVATAR
 exports.listarPosts = async (req, res) => {
     try {
         const posts = await Post.findAll({
@@ -56,8 +57,10 @@ exports.listarPosts = async (req, res) => {
         
         for (const post of posts) {
             try {
-                // Buscar usuário manualmente
-                const usuario = await User.findByPk(post.usuario_id);
+                // Buscar usuário manualmente COM AVATAR
+                const usuario = await User.findByPk(post.usuario_id, {
+                    attributes: ['id', 'username', 'display_name', 'avatar']  // ← ADICIONADO AVATAR
+                });
                 
                 const curtidas = await Like.count({ where: { post_id: post.id } });
                 const salvos = await SavedPost.count({ where: { post_id: post.id } });
@@ -76,6 +79,7 @@ exports.listarPosts = async (req, res) => {
                 
                 const nomeExibicao = usuario ? (usuario.display_name || usuario.username || 'Usuário') : 'Usuário';
                 const username = usuario ? (usuario.username || 'usuario') : 'usuario';
+                const avatar = usuario ? (usuario.avatar || null) : null;  // ← ADICIONADO
                 
                 postsFormatados.push({
                     id: post.id,
@@ -85,6 +89,7 @@ exports.listarPosts = async (req, res) => {
                     usuario_id: post.usuario_id,
                     display_name: nomeExibicao,
                     username: username,
+                    avatar: avatar,  // ← ADICIONADO
                     handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
                     timestamp: post.createdAt,
                     curtidas: curtidas,
@@ -146,7 +151,7 @@ exports.toggleSalvar = async (req, res) => {
         }
         
     } catch (err) {
-        console.error('Erro toggleSalvar:', err);
+        console.error('Ergo toggleSalvar:', err);
         res.status(500).json({ msg: 'Erro ao processar salvamento' });
     }
 };
