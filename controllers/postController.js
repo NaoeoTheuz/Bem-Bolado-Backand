@@ -15,13 +15,9 @@ exports.criarPost = async (req, res) => {
             hashtag
         });
         
-        const usuario = await User.findByPk(req.usuarioId);
-        
-        if (!usuario) {
-            return res.status(404).json({ msg: 'Usuário não encontrado' });
-        }
-        
-        const nomeExibicao = usuario.display_name || usuario.username || 'Usuário';
+        const usuario = await User.findByPk(req.usuarioId, {
+            attributes: ['id', 'username', 'display_name', 'avatar']
+        });
         
         res.json({
             id: post.id,
@@ -29,10 +25,9 @@ exports.criarPost = async (req, res) => {
             descricao: post.descricao,
             hashtag: post.hashtag,
             usuario_id: usuario.id,
-            display_name: nomeExibicao,
+            display_name: usuario.display_name || usuario.username,
             username: usuario.username,
-            avatar: usuario.avatar,  // ← ADICIONADO
-            handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
+            avatar: usuario.avatar,
             timestamp: post.createdAt,
             curtidas: 0,
             curtido: false,
@@ -46,7 +41,7 @@ exports.criarPost = async (req, res) => {
     }
 };
 
-// Listar todas as publicações - COM AVATAR
+// Listar todas as publicações
 exports.listarPosts = async (req, res) => {
     try {
         const posts = await Post.findAll({
@@ -57,9 +52,9 @@ exports.listarPosts = async (req, res) => {
         
         for (const post of posts) {
             try {
-                // Buscar usuário manualmente COM AVATAR
+                // BUSCA O USUÁRIO COM AVATAR
                 const usuario = await User.findByPk(post.usuario_id, {
-                    attributes: ['id', 'username', 'display_name', 'avatar']  // ← ADICIONADO AVATAR
+                    attributes: ['id', 'username', 'display_name', 'avatar']
                 });
                 
                 const curtidas = await Like.count({ where: { post_id: post.id } });
@@ -77,20 +72,15 @@ exports.listarPosts = async (req, res) => {
                     }) !== null;
                 }
                 
-                const nomeExibicao = usuario ? (usuario.display_name || usuario.username || 'Usuário') : 'Usuário';
-                const username = usuario ? (usuario.username || 'usuario') : 'usuario';
-                const avatar = usuario ? (usuario.avatar || null) : null;  // ← ADICIONADO
-                
                 postsFormatados.push({
                     id: post.id,
                     imagem: post.imagem,
                     descricao: post.descricao,
                     hashtag: post.hashtag,
                     usuario_id: post.usuario_id,
-                    display_name: nomeExibicao,
-                    username: username,
-                    avatar: avatar,  // ← ADICIONADO
-                    handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
+                    display_name: usuario?.display_name || usuario?.username || 'Usuário',
+                    username: usuario?.username || 'usuario',
+                    avatar: usuario?.avatar || null,  // ← LINHA ADICIONADA
                     timestamp: post.createdAt,
                     curtidas: curtidas,
                     curtido: curtido,
@@ -151,7 +141,7 @@ exports.toggleSalvar = async (req, res) => {
         }
         
     } catch (err) {
-        console.error('Ergo toggleSalvar:', err);
+        console.error('Erro toggleSalvar:', err);
         res.status(500).json({ msg: 'Erro ao processar salvamento' });
     }
 };
