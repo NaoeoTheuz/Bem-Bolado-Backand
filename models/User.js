@@ -62,6 +62,10 @@ const User = sequelize.define('User', {
     notificacoes_comentarios: {
         type: DataTypes.BOOLEAN,
         defaultValue: true
+    },
+    admin: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
     tableName: 'users',
