@@ -15,7 +15,13 @@ exports.getPerfil = async (req, res) => {
             return res.status(404).json({ msg: 'Usuário não encontrado' });
         }
         
-        res.json(user);
+        // Log para debug
+        console.log('Admin value for user', user.display_name, ':', user.admin);
+        
+        // Garantir que o campo admin seja enviado
+        const userData = user.toJSON();
+        
+        res.json(userData);
     } catch (err) {
         console.error('Erro getPerfil:', err);
         res.status(500).json({ msg: 'Erro no servidor' });
