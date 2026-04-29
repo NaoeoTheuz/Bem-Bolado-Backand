@@ -18,6 +18,10 @@ const Mensagem = require('./models/Mensagem');
 // IMPORTAR MODELO DE SEGUIDORES
 const Seguidor = require('./models/Seguidor');
 
+// IMPORTAR MODELOS DE ADMIN/MODERAÇÃO
+const Denuncia = require('./models/Denuncia');
+const NotificacaoAdmin = require('./models/NotificacaoAdmin');
+
 // CONFIGURAR ASSOCIAÇÕES DIRETAMENTE AQUI
 // Associações do User (já existentes)
 User.hasMany(Post, { foreignKey: 'usuario_id' });
@@ -65,6 +69,20 @@ Seguidor.belongsTo(User, { as: 'seguindo', foreignKey: 'seguindo_id' });
 User.hasMany(Seguidor, { as: 'seguidores', foreignKey: 'seguindo_id' });
 User.hasMany(Seguidor, { as: 'seguindo', foreignKey: 'seguidor_id' });
 
+// =============================================
+// ASSOCIAÇÕES DO SISTEMA DE MODERAÇÃO
+// =============================================
+
+// Associações de Denúncia
+Denuncia.belongsTo(User, { as: 'denunciante', foreignKey: 'denunciante_id' });
+Denuncia.belongsTo(User, { as: 'denunciado', foreignKey: 'denunciado_id' });
+User.hasMany(Denuncia, { as: 'denuncias_feitas', foreignKey: 'denunciante_id' });
+User.hasMany(Denuncia, { as: 'denuncias_recebidas', foreignKey: 'denunciado_id' });
+
+// Associações de Notificações Admin
+NotificacaoAdmin.belongsTo(User, { as: 'admin', foreignKey: 'admin_id' });
+User.hasMany(NotificacaoAdmin, { as: 'notificacoes', foreignKey: 'admin_id' });
+
 const authRoutes = require('./routes/authRoutes');
 const postRoutes = require('./routes/postRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -97,6 +115,7 @@ async function startServer() {
         console.log('✅ Associações configuradas');
         console.log('✅ Sistema de Chat ativado');
         console.log('✅ Sistema de Seguidores ativado');
+        console.log('✅ Sistema de Moderação ativado');
         
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Servidor rodando na porta ${PORT}`);
