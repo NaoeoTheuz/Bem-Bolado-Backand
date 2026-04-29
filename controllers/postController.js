@@ -1,5 +1,3 @@
-postcontroller.js atual
-
 const Post = require('../models/Post');
 const Like = require('../models/Like');
 const SavedPost = require('../models/SavedPost');
