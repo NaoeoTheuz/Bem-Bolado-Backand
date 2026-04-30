@@ -31,13 +31,16 @@ exports.criarPost = async (req, res) => {
             usuario_id: usuario.id,
             display_name: nomeExibicao,
             username: usuario.username,
-            avatar: usuario.avatar,  // ← ADICIONADO
+            avatar: usuario.avatar,
             handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
             timestamp: post.createdAt,
             curtidas: 0,
             curtido: false,
             salvos: 0,
-            salvo: false
+            salvo: false,
+            premium: false,
+            premium_tipo: null,
+            premium_ate: null
         });
         
     } catch (err) {
@@ -46,7 +49,7 @@ exports.criarPost = async (req, res) => {
     }
 };
 
-// Listar todas as publicações - COM AVATAR
+// Listar todas as publicações - COM AVATAR E PREMIUM
 exports.listarPosts = async (req, res) => {
     try {
         const posts = await Post.findAll({
@@ -57,9 +60,26 @@ exports.listarPosts = async (req, res) => {
         
         for (const post of posts) {
             try {
+                // Verificar se premium expirou
+                let premium = post.premium || false;
+                let premium_tipo = post.premium_tipo || null;
+                let premium_ate = post.premium_ate || null;
+                
+                if (premium && premium_ate && new Date() > new Date(premium_ate)) {
+                    // Expirou, desativar premium
+                    await post.update({
+                        premium: false,
+                        premium_ate: null,
+                        premium_tipo: null
+                    });
+                    premium = false;
+                    premium_tipo = null;
+                    premium_ate = null;
+                }
+                
                 // Buscar usuário manualmente COM AVATAR
                 const usuario = await User.findByPk(post.usuario_id, {
-                    attributes: ['id', 'username', 'display_name', 'avatar']  // ← ADICIONADO AVATAR
+                    attributes: ['id', 'username', 'display_name', 'avatar']
                 });
                 
                 const curtidas = await Like.count({ where: { post_id: post.id } });
@@ -79,7 +99,7 @@ exports.listarPosts = async (req, res) => {
                 
                 const nomeExibicao = usuario ? (usuario.display_name || usuario.username || 'Usuário') : 'Usuário';
                 const username = usuario ? (usuario.username || 'usuario') : 'usuario';
-                const avatar = usuario ? (usuario.avatar || null) : null;  // ← ADICIONADO
+                const avatar = usuario ? (usuario.avatar || null) : null;
                 
                 postsFormatados.push({
                     id: post.id,
@@ -89,18 +109,28 @@ exports.listarPosts = async (req, res) => {
                     usuario_id: post.usuario_id,
                     display_name: nomeExibicao,
                     username: username,
-                    avatar: avatar,  // ← ADICIONADO
+                    avatar: avatar,
                     handle: '@' + nomeExibicao.toLowerCase().replace(/\s/g, ''),
                     timestamp: post.createdAt,
                     curtidas: curtidas,
                     curtido: curtido,
                     salvos: salvos,
-                    salvo: salvo
+                    salvo: salvo,
+                    premium: premium,
+                    premium_tipo: premium_tipo,
+                    premium_ate: premium_ate
                 });
             } catch (innerErr) {
                 console.error('Erro processando post:', post.id, innerErr.message);
             }
         }
+        
+        // Ordenar: posts premium primeiro, depois os normais
+        postsFormatados.sort((a, b) => {
+            if (a.premium && !b.premium) return -1;
+            if (!a.premium && b.premium) return 1;
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        });
         
         res.json(postsFormatados);
         
@@ -151,7 +181,7 @@ exports.toggleSalvar = async (req, res) => {
         }
         
     } catch (err) {
-        console.error('Ergo toggleSalvar:', err);
+        console.error('Erro toggleSalvar:', err);
         res.status(500).json({ msg: 'Erro ao processar salvamento' });
     }
 };
@@ -180,5 +210,88 @@ exports.excluirPost = async (req, res) => {
     } catch (err) {
         console.error('Erro excluirPost:', err);
         res.status(500).json({ msg: 'Erro ao excluir publicação' });
+    }
+};
+
+// =============================================
+// FUNÇÕES DE POST PREMIUM
+// =============================================
+
+// Tornar post premium
+exports.tornarPremium = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tipo, valor } = req.body;
+        
+        const post = await Post.findByPk(id);
+        
+        if (!post) {
+            return res.status(404).json({ erro: 'Post não encontrado' });
+        }
+        
+        if (post.usuario_id !== req.usuarioId) {
+            return res.status(403).json({ erro: 'Você não é o dono deste post' });
+        }
+        
+        if (post.premium) {
+            return res.status(400).json({ erro: 'Este post já é premium' });
+        }
+        
+        // Calcular data de expiração (24 horas)
+        const premiumAte = new Date();
+        premiumAte.setHours(premiumAte.getHours() + 24);
+        
+        // Atualizar post
+        await post.update({
+            premium: true,
+            premium_ate: premiumAte,
+            premium_tipo: tipo
+        });
+        
+        console.log(`💰 Post ${id} tornou-se premium (${tipo}) por R$ ${valor}`);
+        
+        res.json({ 
+            sucesso: true, 
+            mensagem: `Post agora é premium (${tipo === 'destaque' ? 'Destaque' : 'Impulsionado'}) por 24h`,
+            premium: true,
+            premium_ate: premiumAte
+        });
+        
+    } catch (err) {
+        console.error('Erro tornarPremium:', err);
+        res.status(500).json({ erro: 'Erro ao processar' });
+    }
+};
+
+// Verificar se post ainda é premium (atualizar expirados)
+exports.verificarPremium = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const post = await Post.findByPk(id);
+        
+        if (!post) {
+            return res.status(404).json({ erro: 'Post não encontrado' });
+        }
+        
+        // Verificar se expirou
+        if (post.premium && post.premium_ate && new Date() > new Date(post.premium_ate)) {
+            await post.update({
+                premium: false,
+                premium_ate: null,
+                premium_tipo: null
+            });
+            return res.json({ premium: false, expirado: true });
+        }
+        
+        res.json({ 
+            premium: post.premium || false,
+            premium_ate: post.premium_ate || null,
+            premium_tipo: post.premium_tipo || null
+        });
+        
+    } catch (err) {
+        console.error('Erro verificarPremium:', err);
+        res.status(500).json({ erro: 'Erro ao verificar' });
     }
 };
