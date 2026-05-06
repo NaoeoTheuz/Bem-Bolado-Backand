@@ -33,9 +33,26 @@ const Denuncia = sequelize.define('Denuncia', {
         type: DataTypes.TEXT,
         allowNull: true
     },
+    imagem: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Imagem anexada à denúncia (Base64)'
+    },
     status: {
         type: DataTypes.ENUM('pendente', 'analisada', 'arquivada'),
         defaultValue: 'pendente'
+    },
+    acao_admin: {
+        type: DataTypes.ENUM('nenhuma', 'suspenso', 'banido', 'observacao', 'arquivada'),
+        defaultValue: 'nenhuma'
+    },
+    observacao_admin: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    data_acao: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     tableName: 'denuncias',
