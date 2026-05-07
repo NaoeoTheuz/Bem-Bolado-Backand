@@ -68,59 +68,80 @@ async function criarNotificacaoAdmin(adminId, tipo, titulo, mensagem, link = nul
 // ROTAS DO CHAT
 // =============================================
 
-// Listar todos os chats do usuário
+// Listar todos os chats do usuário - VERSÃO CORRIGIDA
 router.get('/chats', auth, async (req, res) => {
     try {
+        // Buscar todos os chats onde o usuário é participante
+        const chatParticipantes = await ChatParticipante.findAll({
+            where: { usuario_id: req.usuarioId },
+            attributes: ['chat_id']
+        });
+        
+        const chatIds = chatParticipantes.map(cp => cp.chat_id);
+        
+        if (chatIds.length === 0) {
+            return res.json([]);
+        }
+        
         const chats = await Chat.findAll({
+            where: { id: { [Op.in]: chatIds } },
             include: [
                 {
                     model: User,
                     through: { attributes: [] },
-                    attributes: ['id', 'display_name', 'email']
+                    attributes: ['id', 'display_name', 'email', 'avatar']
+                },
+                {
+                    model: Mensagem,
+                    as: 'mensagens',
+                    limit: 1,
+                    order: [['createdAt', 'DESC']],
+                    required: false
                 }
-            ]
+            ],
+            order: [[{ model: Mensagem, as: 'mensagens' }, 'createdAt', 'DESC']]
         });
         
-        const chatsDoUsuario = chats.filter(chat => {
-            return chat.Users?.some(user => user.id == req.usuarioId);
-        });
-        
-        console.log(`✅ Encontrados ${chatsDoUsuario.length} chats para o usuário ${req.usuarioId}`);
-        res.json(chatsDoUsuario);
+        console.log(`✅ Usuário ${req.usuarioId} tem ${chats.length} chats. IDs:`, chats.map(c => c.id));
+        res.json(chats);
     } catch (error) {
         console.error('❌ Erro ao listar chats:', error);
         res.status(500).json({ erro: error.message });
     }
 });
 
-// Criar ou buscar chat existente com um usuário
+// Criar ou buscar chat existente com um usuário - VERSÃO CORRIGIDA
 router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
     try {
         const { usuarioId } = req.params;
         
-        const chatsExistentes = await Chat.findAll({
-            include: [
-                {
-                    model: User,
-                    where: { id: req.usuarioId },
-                    through: { attributes: [] }
-                },
-                {
-                    model: User,
-                    where: { id: usuarioId },
-                    through: { attributes: [] }
-                }
-            ]
+        // Buscar chat existente através da tabela de participantes
+        const chatsDoUsuario = await ChatParticipante.findAll({
+            where: { usuario_id: req.usuarioId },
+            attributes: ['chat_id']
         });
         
-        if (chatsExistentes.length > 0) {
-            console.log(`✅ Chat existente encontrado: ${chatsExistentes[0].id}`);
-            const chatExistente = await Chat.findByPk(chatsExistentes[0].id, {
-                include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'display_name', 'email'] }]
+        const chatIds = chatsDoUsuario.map(cp => cp.chat_id);
+        
+        if (chatIds.length > 0) {
+            // Verificar se algum desses chats contém o outro usuário
+            const participantesDoOutro = await ChatParticipante.findAll({
+                where: { 
+                    usuario_id: usuarioId,
+                    chat_id: { [Op.in]: chatIds }
+                }
             });
-            return res.json(chatExistente);
+            
+            if (participantesDoOutro.length > 0) {
+                const chatExistente = await Chat.findByPk(participantesDoOutro[0].chat_id, {
+                    include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'display_name', 'email', 'avatar'] }]
+                });
+                console.log(`✅ Chat existente encontrado: ${chatExistente.id}`);
+                return res.json(chatExistente);
+            }
         }
         
+        // Criar novo chat
         const chat = await Chat.create({ tipo: 'individual' });
         console.log(`📌 Novo chat criado: ${chat.id}`);
         
@@ -128,7 +149,7 @@ router.post('/chats/usuario/:usuarioId', auth, async (req, res) => {
         await ChatParticipante.create({ chat_id: chat.id, usuario_id: usuarioId });
         
         const chatCompleto = await Chat.findByPk(chat.id, {
-            include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'display_name', 'email'] }]
+            include: [{ model: User, through: { attributes: [] }, attributes: ['id', 'display_name', 'email', 'avatar'] }]
         });
         
         res.status(201).json(chatCompleto);
@@ -147,7 +168,7 @@ router.get('/chats/:chatId/mensagens', auth, async (req, res) => {
                 {
                     model: User,
                     as: 'remetente',
-                    attributes: ['id', 'display_name']
+                    attributes: ['id', 'display_name', 'avatar']
                 }
             ],
             order: [['createdAt', 'ASC']]
@@ -171,7 +192,7 @@ router.post('/chats/:chatId/mensagens', auth, async (req, res) => {
         });
         
         const mensagemCompleta = await Mensagem.findByPk(mensagem.id, {
-            include: [{ model: User, as: 'remetente', attributes: ['id', 'display_name'] }]
+            include: [{ model: User, as: 'remetente', attributes: ['id', 'display_name', 'avatar'] }]
         });
         
         res.status(201).json(mensagemCompleta);
@@ -186,13 +207,14 @@ router.get('/usuarios', auth, async (req, res) => {
     try {
         const usuarios = await User.findAll({
             where: { id: { [Op.ne]: req.usuarioId } },
-            attributes: ['id', 'display_name', 'email', 'admin']
+            attributes: ['id', 'display_name', 'email', 'avatar', 'admin']
         });
         
         const usuariosFormatados = usuarios.map(user => ({
             id: user.id,
             nome: user.display_name,
             email: user.email,
+            avatar: user.avatar,
             admin: user.admin || false
         }));
         
@@ -352,7 +374,7 @@ router.get('/bloqueado/:usuarioId', auth, async (req, res) => {
 router.post('/denunciar/:usuarioId', auth, async (req, res) => {
     try {
         const { usuarioId } = req.params;
-        const { motivo, descricao } = req.body;
+        const { motivo, descricao, imagem } = req.body;
         
         if (req.usuarioId == usuarioId) {
             return res.status(400).json({ erro: 'Não pode denunciar a si mesmo' });
@@ -362,7 +384,8 @@ router.post('/denunciar/:usuarioId', auth, async (req, res) => {
             denunciante_id: req.usuarioId,
             denunciado_id: usuarioId,
             motivo: motivo,
-            descricao: descricao || null
+            descricao: descricao || null,
+            imagem: imagem || null
         });
         
         // Buscar dados para a notificação
@@ -378,13 +401,13 @@ router.post('/denunciar/:usuarioId', auth, async (req, res) => {
                 admin.id,
                 'nova_denuncia',
                 '📢 Nova Denúncia',
-                `${denunciante.display_name} denunciou ${denunciado.display_name} - Motivo: ${motivo}`,
+                `${denunciante.display_name} denunciou ${denunciado.display_name} - Motivo: ${motivo}${imagem ? ' 📸 com imagem' : ''}`,
                 `/admin/denuncias/${denuncia.id}`,
-                { denuncia_id: denuncia.id, denunciante_id: req.usuarioId, denunciado_id: usuarioId }
+                { denuncia_id: denuncia.id, denunciante_id: req.usuarioId, denunciado_id: usuarioId, tem_imagem: !!imagem }
             );
         }
         
-        console.log(`📢 Usuário ${req.usuarioId} denunciou ${usuarioId} - Motivo: ${motivo}`);
+        console.log(`📢 Usuário ${req.usuarioId} denunciou ${usuarioId} - Motivo: ${motivo}${imagem ? ' (com imagem)' : ''}`);
         res.json({ denunciado: true, mensagem: 'Denúncia enviada com sucesso' });
     } catch (error) {
         console.error('Erro ao denunciar:', error);
@@ -431,6 +454,86 @@ router.put('/admin/denuncias/:denunciaId', auth, verificarAdmin, async (req, res
         res.json({ mensagem: 'Denúncia atualizada com sucesso', denuncia });
     } catch (error) {
         console.error('Erro ao atualizar denúncia:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// Tomar ação sobre uma denúncia (admin)
+router.post('/admin/denuncias/:denunciaId/acao', auth, verificarAdmin, async (req, res) => {
+    try {
+        const { denunciaId } = req.params;
+        const { acao, dias, observacao, usuario_afetado_id } = req.body;
+        
+        const denuncia = await Denuncia.findByPk(denunciaId);
+        if (!denuncia) {
+            return res.status(404).json({ erro: 'Denúncia não encontrada' });
+        }
+        
+        const usuarioAfetado = await User.findByPk(usuario_afetado_id);
+        if (!usuarioAfetado) {
+            return res.status(404).json({ erro: 'Usuário não encontrado' });
+        }
+        
+        let mensagem = '';
+        let acaoAdmin = 'nenhuma';
+        
+        switch(acao) {
+            case 'suspender':
+                const diasSuspensao = dias || 5;
+                const suspensaoAte = new Date();
+                suspensaoAte.setDate(suspensaoAte.getDate() + diasSuspensao);
+                await usuarioAfetado.update({
+                    status: 'suspenso',
+                    suspensao_ate: suspensaoAte,
+                    motivo_banimento: observacao || `Suspenso por ${diasSuspensao} dias devido à denúncia #${denunciaId}`
+                });
+                acaoAdmin = 'suspenso';
+                mensagem = `Usuário ${usuarioAfetado.display_name} suspenso por ${diasSuspensao} dias`;
+                break;
+                
+            case 'banir':
+                await usuarioAfetado.update({
+                    status: 'banido',
+                    motivo_banimento: observacao || `Banido devido à denúncia #${denunciaId}`
+                });
+                acaoAdmin = 'banido';
+                mensagem = `Usuário ${usuarioAfetado.display_name} banido permanentemente`;
+                break;
+                
+            case 'observacao':
+                acaoAdmin = 'observacao';
+                mensagem = `Usuário ${usuarioAfetado.display_name} marcado para observação`;
+                break;
+                
+            case 'arquivar':
+                acaoAdmin = 'arquivada';
+                mensagem = `Denúncia #${denunciaId} arquivada sem ação`;
+                break;
+                
+            default:
+                return res.status(400).json({ erro: 'Ação inválida' });
+        }
+        
+        await denuncia.update({
+            status: acao === 'arquivar' ? 'arquivada' : 'analisada',
+            acao_admin: acaoAdmin,
+            observacao_admin: observacao,
+            data_acao: new Date()
+        });
+        
+        // Notificar o denunciante sobre a ação
+        await criarNotificacaoAdmin(
+            denuncia.denunciante_id,
+            'denuncia_respondida',
+            '📢 Atualização da sua denúncia',
+            `Sua denúncia contra ${usuarioAfetado.display_name} foi analisada. Ação: ${acao === 'suspender' ? 'Suspensão' : acao === 'banir' ? 'Banimento' : acao === 'observacao' ? 'Observação' : 'Arquivada'}`,
+            `/denuncias/${denunciaId}`
+        );
+        
+        res.json({ mensagem: mensagem, acao: acaoAdmin });
+        
+    } catch (error) {
+        console.error('Erro ao processar ação:', error);
         res.status(500).json({ erro: error.message });
     }
 });
