@@ -40,7 +40,8 @@ exports.criarPost = async (req, res) => {
             salvo: false,
             premium: false,
             premium_tipo: null,
-            premium_ate: null
+            premium_ate: null,
+            prioridade: 0
         });
         
     } catch (err) {
@@ -49,11 +50,14 @@ exports.criarPost = async (req, res) => {
     }
 };
 
-// Listar todas as publicações - COM AVATAR E PREMIUM
+// Listar todas as publicações - COM AVATAR, PREMIUM E PRIORIDADE
 exports.listarPosts = async (req, res) => {
     try {
         const posts = await Post.findAll({
-            order: [['createdAt', 'DESC']]
+            order: [
+                ['prioridade', 'DESC'],  // Impulsionado (2) > Destaque (1) > Normal (0)
+                ['createdAt', 'DESC']    // Depois por data
+            ]
         });
         
         const postsFormatados = [];
@@ -64,17 +68,20 @@ exports.listarPosts = async (req, res) => {
                 let premium = post.premium || false;
                 let premium_tipo = post.premium_tipo || null;
                 let premium_ate = post.premium_ate || null;
+                let prioridade = post.prioridade || 0;
                 
                 if (premium && premium_ate && new Date() > new Date(premium_ate)) {
                     // Expirou, desativar premium
                     await post.update({
                         premium: false,
                         premium_ate: null,
-                        premium_tipo: null
+                        premium_tipo: null,
+                        prioridade: 0
                     });
                     premium = false;
                     premium_tipo = null;
                     premium_ate = null;
+                    prioridade = 0;
                 }
                 
                 // Buscar usuário manualmente COM AVATAR
@@ -118,19 +125,13 @@ exports.listarPosts = async (req, res) => {
                     salvo: salvo,
                     premium: premium,
                     premium_tipo: premium_tipo,
-                    premium_ate: premium_ate
+                    premium_ate: premium_ate,
+                    prioridade: prioridade
                 });
             } catch (innerErr) {
                 console.error('Erro processando post:', post.id, innerErr.message);
             }
         }
-        
-        // Ordenar: posts premium primeiro, depois os normais
-        postsFormatados.sort((a, b) => {
-            if (a.premium && !b.premium) return -1;
-            if (!a.premium && b.premium) return 1;
-            return new Date(b.timestamp) - new Date(a.timestamp);
-        });
         
         res.json(postsFormatados);
         
@@ -217,7 +218,7 @@ exports.excluirPost = async (req, res) => {
 // FUNÇÕES DE POST PREMIUM
 // =============================================
 
-// Tornar post premium
+// Tornar post premium (com prioridade)
 exports.tornarPremium = async (req, res) => {
     try {
         const { id } = req.params;
@@ -241,20 +242,28 @@ exports.tornarPremium = async (req, res) => {
         const premiumAte = new Date();
         premiumAte.setHours(premiumAte.getHours() + 24);
         
+        // Definir prioridade baseada no tipo
+        let prioridade = 1; // destaque
+        if (tipo === 'impulsionado') {
+            prioridade = 2; // impulsionado tem prioridade maior
+        }
+        
         // Atualizar post
         await post.update({
             premium: true,
             premium_ate: premiumAte,
-            premium_tipo: tipo
+            premium_tipo: tipo,
+            prioridade: prioridade
         });
         
-        console.log(`💰 Post ${id} tornou-se premium (${tipo}) por R$ ${valor}`);
+        console.log(`💰 Post ${id} tornou-se premium ${tipo} (prioridade ${prioridade}) por R$ ${valor}`);
         
         res.json({ 
             sucesso: true, 
             mensagem: `Post agora é premium (${tipo === 'destaque' ? 'Destaque' : 'Impulsionado'}) por 24h`,
             premium: true,
-            premium_ate: premiumAte
+            premium_ate: premiumAte,
+            prioridade: prioridade
         });
         
     } catch (err) {
@@ -279,7 +288,8 @@ exports.verificarPremium = async (req, res) => {
             await post.update({
                 premium: false,
                 premium_ate: null,
-                premium_tipo: null
+                premium_tipo: null,
+                prioridade: 0
             });
             return res.json({ premium: false, expirado: true });
         }
@@ -287,7 +297,8 @@ exports.verificarPremium = async (req, res) => {
         res.json({ 
             premium: post.premium || false,
             premium_ate: post.premium_ate || null,
-            premium_tipo: post.premium_tipo || null
+            premium_tipo: post.premium_tipo || null,
+            prioridade: post.prioridade || 0
         });
         
     } catch (err) {
