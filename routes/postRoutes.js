@@ -12,4 +12,9 @@ router.delete('/:id', authMiddleware, postController.excluirPost);
 router.post('/:id/tornar-premium', authMiddleware, postController.tornarPremium);
 router.get('/:id/verificar-premium', authMiddleware, postController.verificarPremium);
 
+// =============================================
+// ROTAS DE DENÚNCIA
+// =============================================
+router.post('/:id/denunciar', authMiddleware, postController.denunciarPost);
+
 module.exports = router;
