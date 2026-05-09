@@ -306,3 +306,71 @@ exports.verificarPremium = async (req, res) => {
         res.status(500).json({ erro: 'Erro ao verificar' });
     }
 };
+
+// =============================================
+// DENUNCIAR POST
+// =============================================
+exports.denunciarPost = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const { motivo, detalhes } = req.body;
+        const usuarioId = req.usuarioId;
+        
+        // Verificar se o post existe
+        const post = await Post.findByPk(postId);
+        if (!post) {
+            return res.status(404).json({ erro: 'Post não encontrado' });
+        }
+        
+        // Não pode denunciar o próprio post
+        if (post.usuario_id === usuarioId) {
+            return res.status(400).json({ erro: 'Você não pode denunciar seu próprio post' });
+        }
+        
+        // Armazenamento temporário em memória (enquanto não tem banco de denúncias)
+        if (!global.denuncias) {
+            global.denuncias = [];
+        }
+        
+        // Verificar se já denunciou este post
+        const jaDenunciou = global.denuncias.some(d => d.post_id === parseInt(postId) && d.denunciante_id === usuarioId);
+        
+        if (jaDenunciou) {
+            return res.status(400).json({ erro: 'Você já denunciou este post' });
+        }
+        
+        // Buscar dados do autor do post e do denunciante
+        const postAutor = await User.findByPk(post.usuario_id);
+        const denunciante = await User.findByPk(usuarioId);
+        
+        // Criar denúncia
+        const novaDenuncia = {
+            id: global.denuncias.length + 1,
+            post_id: parseInt(postId),
+            post_conteudo: post.descricao || '',
+            post_imagem: post.imagem || null,
+            post_hashtag: post.hashtag || '',
+            denunciante_id: usuarioId,
+            denunciante_nome: denunciante?.display_name || denunciante?.username || 'Usuário',
+            denunciado_id: post.usuario_id,
+            denunciado_nome: postAutor?.display_name || postAutor?.username || 'Usuário',
+            motivo: motivo,
+            descricao: detalhes || '',
+            status: 'pendente',
+            createdAt: new Date().toISOString()
+        };
+        
+        global.denuncias.push(novaDenuncia);
+        
+        console.log('📝 Nova denúncia registrada:', novaDenuncia);
+        
+        res.status(201).json({ 
+            mensagem: 'Denúncia enviada com sucesso! Nossa equipe irá analisar.',
+            denuncia: novaDenuncia 
+        });
+        
+    } catch (err) {
+        console.error('Erro ao processar denúncia:', err);
+        res.status(500).json({ erro: 'Erro ao processar denúncia' });
+    }
+};
