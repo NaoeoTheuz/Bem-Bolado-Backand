@@ -4,6 +4,9 @@ require('dotenv').config();
 
 const sequelize = require('./database/connection');
 
+// IMPORTAR MIDDLEWARES
+const authMiddleware = require('./middlewares/authMiddleware');
+
 // IMPORTAR MODELOS PRIMEIRO
 const User = require('./models/User');
 const Post = require('./models/Post');
@@ -110,6 +113,7 @@ app.get('/', (req, res) => {
 // Middleware para verificar se é admin
 const verificarAdmin = async (req, res, next) => {
     try {
+        // CORREÇÃO: usar req.usuarioId (vem do authMiddleware)
         const usuario = await User.findByPk(req.usuarioId);
         if (!usuario || !usuario.admin) {
             return res.status(403).json({ erro: 'Acesso negado. Apenas administradores.' });
