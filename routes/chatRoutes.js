@@ -69,7 +69,7 @@ async function criarNotificacaoAdmin(adminId, tipo, titulo, mensagem, link = nul
 // ROTAS DO CHAT
 // =============================================
 
-// Listar todos os chats do usuário
+// Listar todos os chats do usuário - VERSÃO CORRIGIDA (sem ORDER BY problemático)
 router.get('/chats', auth, async (req, res) => {
     try {
         const chatParticipantes = await ChatParticipante.findAll({
@@ -90,16 +90,8 @@ router.get('/chats', auth, async (req, res) => {
                     model: User,
                     through: { attributes: [] },
                     attributes: ['id', 'display_name', 'email', 'avatar']
-                },
-                {
-                    model: Mensagem,
-                    as: 'mensagens',
-                    limit: 1,
-                    order: [['createdAt', 'DESC']],
-                    required: false
                 }
-            ],
-            order: [[{ model: Mensagem, as: 'mensagens' }, 'createdAt', 'DESC']]
+            ]
         });
         
         console.log(`✅ Usuário ${req.usuarioId} tem ${chats.length} chats`);
