@@ -282,3 +282,23 @@ exports.getSeguindo = async (req, res) => {
         res.status(500).json({ msg: 'Erro no servidor' });
     }
 };
+
+// =============================================
+// BUSCAR USUÁRIO POR ID (usada pelo frontend para redirecionamento)
+// =============================================
+exports.buscarPorId = async (req, res) => {
+    try {
+        const usuario = await User.findByPk(req.params.id, {
+            attributes: ['id', 'username', 'display_name', 'avatar', 'bio']
+        });
+        
+        if (!usuario) {
+            return res.status(404).json({ erro: 'Usuário não encontrado' });
+        }
+        
+        res.json(usuario);
+    } catch (err) {
+        console.error('Erro ao buscar usuário por ID:', err);
+        res.status(500).json({ erro: 'Erro ao buscar usuário' });
+    }
+};
