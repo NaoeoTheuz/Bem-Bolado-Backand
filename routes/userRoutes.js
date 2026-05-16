@@ -18,4 +18,9 @@ router.get('/:id/seguindo', authMiddleware, userController.getSeguindo);
 router.post('/:id/seguir', authMiddleware, userController.seguir);
 router.delete('/:id/seguir', authMiddleware, userController.deixarSeguir);
 
+// =============================================
+// ROTA PARA BUSCAR USUÁRIO POR ID
+// =============================================
+router.get('/buscar/:id', authMiddleware, userController.buscarPorId);
+
 module.exports = router;
