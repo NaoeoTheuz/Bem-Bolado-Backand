@@ -374,3 +374,66 @@ exports.denunciarPost = async (req, res) => {
         res.status(500).json({ erro: 'Erro ao processar denúncia' });
     }
 };
+
+// =============================================
+// BUSCAR POST POR ID (para página de detalhes)
+// =============================================
+exports.getPostById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const post = await Post.findByPk(id, {
+            include: [{
+                model: User,
+                attributes: ['id', 'display_name', 'username', 'avatar']
+            }]
+        });
+        
+        if (!post) {
+            return res.status(404).json({ erro: 'Post não encontrado' });
+        }
+        
+        // Contar curtidas e salvos
+        const curtidas = await Like.count({ where: { post_id: post.id } });
+        const salvos = await SavedPost.count({ where: { post_id: post.id } });
+        
+        // Verificar se o usuário logado curtiu/salvou
+        let curtido = false;
+        let salvo = false;
+        
+        if (req.usuarioId) {
+            curtido = await Like.findOne({ 
+                where: { post_id: post.id, usuario_id: req.usuarioId } 
+            }) !== null;
+            salvo = await SavedPost.findOne({ 
+                where: { post_id: post.id, usuario_id: req.usuarioId } 
+            }) !== null;
+        }
+        
+        const usuario = post.User;
+        const nomeExibicao = usuario ? (usuario.display_name || usuario.username || 'Usuário') : 'Usuário';
+        
+        res.json({
+            id: post.id,
+            imagem: post.imagem,
+            descricao: post.descricao,
+            hashtag: post.hashtag,
+            usuario_id: post.usuario_id,
+            display_name: nomeExibicao,
+            username: usuario?.username || nomeExibicao.toLowerCase().replace(/\s/g, ''),
+            avatar: usuario?.avatar || null,
+            timestamp: post.createdAt,
+            curtidas: curtidas,
+            curtido: curtido,
+            salvos: salvos,
+            salvo: salvo,
+            premium: post.premium || false,
+            premium_tipo: post.premium_tipo || null,
+            prioridade: post.prioridade || 0
+        });
+        
+    } catch (err) {
+        console.error('Erro getPostById:', err);
+        res.status(500).json({ erro: 'Erro ao buscar post' });
+    }
+};
