@@ -564,4 +564,69 @@ router.post('/admin/tornar-admin/:email', auth, verificarAdmin, async (req, res)
     }
 });
 
+// =============================================
+// ROTA PARA FORNECER DADOS DO DENUNCIADO (APENAS ADMIN)
+// =============================================
+router.post('/admin/denuncias/:denunciaId/fornecer-dados', auth, verificarAdmin, async (req, res) => {
+    try {
+        const { denunciaId } = req.params;
+        
+        const denuncia = await Denuncia.findByPk(denunciaId);
+        if (!denuncia) {
+            return res.status(404).json({ erro: 'Denúncia não encontrada' });
+        }
+        
+        if (denuncia.dados_fornecidos) {
+            return res.status(400).json({ erro: 'Dados já foram fornecidos para esta denúncia' });
+        }
+        
+        // Buscar dados do denunciado
+        const denunciado = await User.findByPk(denuncia.denunciado_id, {
+            attributes: ['id', 'display_name', 'username', 'email', 'cpf']
+        });
+        
+        if (!denunciado) {
+            return res.status(404).json({ erro: 'Usuário denunciado não encontrado' });
+        }
+        
+        // Marcar como fornecidos
+        await denuncia.update({
+            dados_fornecidos: true,
+            data_fornecimento: new Date()
+        });
+        
+        // Criar notificação para o denunciante com os dados
+        await criarNotificacaoAdmin(
+            denuncia.denunciante_id,
+            'dados_fornecidos',
+            '📋 Dados do usuário denunciado',
+            `Os dados do usuário ${denunciado.display_name} foram liberados para você.\n\n📛 Nome: ${denunciado.display_name}\n👤 Usuário: @${denunciado.username}\n📧 Email: ${denunciado.email}\n📄 CPF: ${denunciado.cpf}`,
+            `/denuncias/${denunciaId}`,
+            { 
+                nome: denunciado.display_name,
+                username: denunciado.username,
+                email: denunciado.email,
+                cpf: denunciado.cpf,
+                denuncia_id: denunciaId
+            }
+        );
+        
+        console.log(`📤 Admin forneceu dados da denúncia ${denunciaId} para o denunciante ${denuncia.denunciante_id}`);
+        
+        res.json({
+            mensagem: 'Dados fornecidos com sucesso! O denunciante foi notificado.',
+            dados: {
+                nome: denunciado.display_name,
+                username: denunciado.username,
+                email: denunciado.email,
+                cpf: denunciado.cpf
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao fornecer dados:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
 module.exports = router;
