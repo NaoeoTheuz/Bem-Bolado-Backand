@@ -13,7 +13,7 @@ const NotificacaoAdmin = sequelize.define('NotificacaoAdmin', {
         comment: 'ID do administrador'
     },
     tipo: {
-        type: DataTypes.ENUM('nova_denuncia', 'denuncia_respondida', 'usuario_bloqueado', 'novo_admin'),
+        type: DataTypes.ENUM('nova_denuncia', 'denuncia_respondida', 'usuario_bloqueado', 'novo_admin', 'dados_fornecidos'),
         allowNull: false
     },
     titulo: {
