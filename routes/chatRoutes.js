@@ -66,6 +66,25 @@ async function criarNotificacaoAdmin(adminId, tipo, titulo, mensagem, link = nul
 }
 
 // =============================================
+// FUNÇÃO PARA CRIAR NOTIFICAÇÃO PARA USUÁRIO COMUM
+// =============================================
+async function criarNotificacaoUsuario(usuarioId, tipo, titulo, mensagem, link = null, dadosExtras = null) {
+    try {
+        await NotificacaoAdmin.create({
+            admin_id: usuarioId,  // Aqui o denunciante vai receber a notificação
+            tipo: tipo,
+            titulo: titulo,
+            mensagem: mensagem,
+            link: link,
+            dados_extras: dadosExtras
+        });
+        console.log(`📬 Notificação criada para usuário ${usuarioId}: ${titulo}`);
+    } catch (error) {
+        console.error('Erro ao criar notificação para usuário:', error);
+    }
+}
+
+// =============================================
 // ROTAS DO CHAT
 // =============================================
 
@@ -565,11 +584,30 @@ router.post('/admin/tornar-admin/:email', auth, verificarAdmin, async (req, res)
 });
 
 // =============================================
+// ROTA PARA BUSCAR NOTIFICAÇÕES DO USUÁRIO COMUM
+// =============================================
+router.get('/notificacoes/usuario', auth, async (req, res) => {
+    try {
+        const notificacoes = await NotificacaoAdmin.findAll({
+            where: { admin_id: req.usuarioId },
+            order: [['createdAt', 'DESC']]
+        });
+        res.json(notificacoes);
+    } catch (error) {
+        console.error('Erro ao buscar notificações do usuário:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
 // ROTA PARA FORNECER DADOS DO DENUNCIADO (APENAS ADMIN)
 // =============================================
 router.post('/admin/denuncias/:denunciaId/fornecer-dados', auth, verificarAdmin, async (req, res) => {
     try {
         const { denunciaId } = req.params;
+        
+        console.log('📤 Admin forneceu dados da denúncia:', denunciaId);
+        console.log('   Admin ID:', req.usuarioId);
         
         const denuncia = await Denuncia.findByPk(denunciaId);
         if (!denuncia) {
@@ -589,32 +627,66 @@ router.post('/admin/denuncias/:denunciaId/fornecer-dados', auth, verificarAdmin,
             return res.status(404).json({ erro: 'Usuário denunciado não encontrado' });
         }
         
+        // Buscar denunciante
+        const denunciante = await User.findByPk(denuncia.denunciante_id);
+        if (!denunciante) {
+            return res.status(404).json({ erro: 'Denunciante não encontrado' });
+        }
+        
         // Marcar como fornecidos
         await denuncia.update({
             dados_fornecidos: true,
             data_fornecimento: new Date()
         });
         
-        // Criar notificação para o denunciante com os dados
-        await criarNotificacaoAdmin(
-            denuncia.denunciante_id,
+        // =============================================
+        // 🔥 CORREÇÃO: Enviar notificação para o DENUNCIANTE
+        // =============================================
+        const mensagemNotificacao = 
+            `📋 Os dados do usuário que você denunciou (${denunciado.display_name}) foram liberados.\n\n` +
+            `📛 Nome: ${denunciado.display_name}\n` +
+            `👤 Usuário: @${denunciado.username}\n` +
+            `📧 Email: ${denunciado.email}\n` +
+            `📄 CPF: ${denunciado.cpf}\n\n` +
+            `🔒 Use estas informações com responsabilidade.`;
+        
+        // Criar notificação para o DENUNCIANTE (quem fez a denúncia)
+        await criarNotificacaoUsuario(
+            denuncia.denunciante_id,  // ✅ Aqui é o denunciante, não o admin!
             'dados_fornecidos',
-            '📋 Dados do usuário denunciado',
-            `Os dados do usuário ${denunciado.display_name} foram liberados para você.\n\n📛 Nome: ${denunciado.display_name}\n👤 Usuário: @${denunciado.username}\n📧 Email: ${denunciado.email}\n📄 CPF: ${denunciado.cpf}`,
-            `/denuncias/${denunciaId}`,
+            '📋 Dados do usuário denunciado liberados',
+            mensagemNotificacao,
+            `/perfil?user=${denunciado.username}`,
             { 
                 nome: denunciado.display_name,
                 username: denunciado.username,
                 email: denunciado.email,
                 cpf: denunciado.cpf,
-                denuncia_id: denunciaId
+                denuncia_id: denunciaId,
+                fornecido_por: req.admin?.display_name || 'Administrador'
             }
         );
         
-        console.log(`📤 Admin forneceu dados da denúncia ${denunciaId} para o denunciante ${denuncia.denunciante_id}`);
+        // Também criar notificação para o admin informando que os dados foram fornecidos
+        await criarNotificacaoAdmin(
+            req.usuarioId,  // Admin atual
+            'dados_fornecidos',
+            '✅ Dados fornecidos com sucesso',
+            `Você forneceu os dados de ${denunciado.display_name} para o denunciante ${denunciante.display_name}.`,
+            `/admin/denuncias/${denunciaId}`,
+            { 
+                denuncia_id: denunciaId,
+                denunciante: denunciante.display_name,
+                denunciado: denunciado.display_name
+            }
+        );
+        
+        console.log(`📤 Dados fornecidos para o DENUNCIANTE ${denuncia.denunciante_id} (${denunciante.display_name})`);
+        console.log(`   Dados do denunciado: ${denunciado.display_name} (@${denunciado.username})`);
         
         res.json({
-            mensagem: 'Dados fornecidos com sucesso! O denunciante foi notificado.',
+            sucesso: true,
+            mensagem: `✅ Dados de ${denunciado.display_name} foram enviados para o denunciante (${denunciante.display_name}) com sucesso!`,
             dados: {
                 nome: denunciado.display_name,
                 username: denunciado.username,
@@ -624,7 +696,7 @@ router.post('/admin/denuncias/:denunciaId/fornecer-dados', auth, verificarAdmin,
         });
         
     } catch (error) {
-        console.error('Erro ao fornecer dados:', error);
+        console.error('❌ Erro ao fornecer dados:', error);
         res.status(500).json({ erro: error.message });
     }
 });
