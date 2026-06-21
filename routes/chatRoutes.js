@@ -701,4 +701,84 @@ router.post('/admin/denuncias/:denunciaId/fornecer-dados', auth, verificarAdmin,
     }
 });
 
+// =============================================
+// ARQUIVAR DENÚNCIA
+// =============================================
+router.post('/admin/denuncias/:denunciaId/arquivar', auth, verificarAdmin, async (req, res) => {
+    try {
+        const { denunciaId } = req.params;
+        
+        const denuncia = await Denuncia.findByPk(denunciaId);
+        if (!denuncia) {
+            return res.status(404).json({ erro: 'Denúncia não encontrada' });
+        }
+        
+        if (denuncia.status === 'arquivada') {
+            return res.status(400).json({ erro: 'Denúncia já está arquivada' });
+        }
+        
+        await denuncia.update({
+            status: 'arquivada',
+            data_acao: new Date()
+        });
+        
+        console.log(`📁 Denúncia ${denunciaId} arquivada pelo admin ${req.usuarioId}`);
+        res.json({ mensagem: 'Denúncia arquivada com sucesso!' });
+        
+    } catch (error) {
+        console.error('Erro ao arquivar denúncia:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
+// DESARQUIVAR DENÚNCIA
+// =============================================
+router.post('/admin/denuncias/:denunciaId/desarquivar', auth, verificarAdmin, async (req, res) => {
+    try {
+        const { denunciaId } = req.params;
+        
+        const denuncia = await Denuncia.findByPk(denunciaId);
+        if (!denuncia) {
+            return res.status(404).json({ erro: 'Denúncia não encontrada' });
+        }
+        
+        if (denuncia.status !== 'arquivada') {
+            return res.status(400).json({ erro: 'Denúncia não está arquivada' });
+        }
+        
+        await denuncia.update({
+            status: 'pendente',
+            data_acao: new Date()
+        });
+        
+        console.log(`📤 Denúncia ${denunciaId} desarquivada pelo admin ${req.usuarioId}`);
+        res.json({ mensagem: 'Denúncia desarquivada com sucesso!' });
+        
+    } catch (error) {
+        console.error('Erro ao desarquivar denúncia:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
+// =============================================
+// LISTAR DENÚNCIAS ARQUIVADAS
+// =============================================
+router.get('/admin/denuncias/arquivadas', auth, verificarAdmin, async (req, res) => {
+    try {
+        const denuncias = await Denuncia.findAll({
+            where: { status: 'arquivada' },
+            include: [
+                { model: User, as: 'denunciante', attributes: ['id', 'display_name', 'username', 'avatar'] },
+                { model: User, as: 'denunciado', attributes: ['id', 'display_name', 'username', 'avatar'] }
+            ],
+            order: [['updatedAt', 'DESC']]
+        });
+        res.json(denuncias);
+    } catch (error) {
+        console.error('Erro ao listar denúncias arquivadas:', error);
+        res.status(500).json({ erro: error.message });
+    }
+});
+
 module.exports = router;
