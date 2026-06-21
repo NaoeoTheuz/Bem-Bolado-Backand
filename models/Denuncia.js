@@ -53,6 +53,19 @@ const Denuncia = sequelize.define('Denuncia', {
     data_acao: {
         type: DataTypes.DATE,
         allowNull: true
+    },
+    // =============================================
+    // NOVOS CAMPOS PARA FORNECIMENTO DE DADOS
+    // =============================================
+    dados_fornecidos: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        comment: 'Indica se os dados do denunciado já foram fornecidos ao denunciante'
+    },
+    data_fornecimento: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'Data em que os dados foram fornecidos ao denunciante'
     }
 }, {
     tableName: 'denuncias',
